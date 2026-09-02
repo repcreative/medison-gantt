@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 84" role="img" aria-label="GA-DA">
+  <g fill="#0a0a0a">
+    <!-- speech bubble mark -->
+    <path d="M14 4h44c7.7 0 14 6.3 14 14v30c0 7.7-6.3 14-14 14H36L12 80l6-18h-4C6.3 62 0 55.7 0 48V18C0 10.3 6.3 4 14 4z"/>
+  </g>
+  <!-- abstract white gesture mark inside bubble -->
+  <g fill="#ffffff">
+    <path d="M17 30c6-5 13-7 20-5 4 1 7 3 9 6-4 1-8 1-12 1 5 2 10 4 14 8-5 1-11 1-16 0 4 3 8 6 11 10-8-1-16-4-22-9-4-3-6-7-4-11z"/>
+  </g>
+  <text x="88" y="63" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-weight="900" font-size="62" letter-spacing="1" fill="#0a0a0a">GADA</text>
+</svg>

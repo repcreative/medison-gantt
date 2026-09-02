@@ -1,0 +1,6 @@
+.system_generated/
+.tempmediaStorage/
+.user_uploaded/
+scratch/
+*.metadata.json
+.DS_Store
