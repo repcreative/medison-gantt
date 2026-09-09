@@ -622,6 +622,110 @@
     #gantt-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
     #gantt-scroll::-webkit-scrollbar-track { background: transparent; }
     #gantt-scroll::-webkit-scrollbar-thumb { background: #d0d0dc; border-radius: 3px; }
+
+    /* --- day cell with weekday name --- */
+    .gantt-day-cell.two { display: flex; flex-direction: column; line-height: 1.05; padding: 1px 0; }
+    .gantt-day-cell .dc-wd { font-size: 8px; font-weight: 700; color: #a6acbd; text-transform: uppercase; }
+    .gantt-day-cell .dc-dn { font-size: 10px; }
+    .gantt-day-cell.weekend .dc-wd { color: #c9a0a0; }
+
+    /* --- owner chip in the sidebar --- */
+    .owner-chip {
+      font-size: 9px; font-weight: 600;
+      padding: 2px 7px; border-radius: 10px;
+      background: #eef1fb; color: #5a6bb0;
+      white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* --- reorder drag handle & indicator --- */
+    .drag-handle {
+      flex-shrink: 0; cursor: grab; color: #c2c7d4; font-size: 12px;
+      line-height: 1; user-select: none; padding: 0 1px;
+    }
+    .drag-handle:hover { color: var(--tg-accent); }
+    .task-sidebar[draggable="true"] { }
+    body.reordering { cursor: grabbing; }
+    body.reordering .task-bar { pointer-events: none; }
+    #reorder-line {
+      position: fixed; height: 2px; background: var(--tg-accent);
+      z-index: 90; display: none; pointer-events: none;
+      box-shadow: 0 0 0 1px rgba(62,136,247,0.35);
+    }
+    .task-row.drag-ghost { opacity: 0.4; }
+
+    /* --- VIEW dropdown --- */
+    .view-wrap { position: relative; }
+    .view-menu {
+      position: absolute; right: 0; top: calc(100% + 6px);
+      background: #fff; border: 1px solid var(--tg-glass-border);
+      border-radius: 14px; box-shadow: 0 8px 28px rgba(30,45,90,0.16);
+      padding: 8px; min-width: 236px; z-index: 60; display: none;
+    }
+    .view-menu.open { display: block; }
+    .view-menu .vm-title {
+      font-size: 10px; font-weight: 700; color: var(--tg-muted);
+      text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 8px 6px;
+    }
+    .vm-item {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 8px 8px; border-radius: 9px; cursor: pointer;
+      font-size: 13px; color: var(--tg-text);
+    }
+    .vm-item:hover { background: #f4f6fd; }
+    /* iOS-style switch */
+    .vm-switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+    .vm-switch input { opacity: 0; width: 0; height: 0; }
+    .vm-slider {
+      position: absolute; inset: 0; border-radius: 22px;
+      background: #d3d8e4; transition: background 0.18s;
+    }
+    .vm-slider::before {
+      content: ''; position: absolute; width: 18px; height: 18px;
+      left: 2px; top: 2px; border-radius: 50%; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform 0.18s;
+    }
+    .vm-switch input:checked + .vm-slider { background: var(--tg-accent); }
+    .vm-switch input:checked + .vm-slider::before { transform: translateX(16px); }
+
+    /* --- task bar completion sweep --- */
+    .task-bar.bar-celebrate {
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.9), 0 6px 20px rgba(0,0,0,0.28);
+      animation: barPop 0.5s ease;
+    }
+    .task-bar.bar-celebrate::after {
+      content: ''; position: absolute; inset: 0; border-radius: 8px;
+      background: linear-gradient(110deg,
+        #ff5f6d, #ffc371, #47e891, #43cbe9, #a86bf0, #ff5f6d);
+      background-size: 300% 100%;
+      mix-blend-mode: screen; opacity: 0.92;
+      animation: barSweep 2.4s linear infinite;
+    }
+    @keyframes barSweep { from { background-position: 0% 0; } to { background-position: 300% 0; } }
+    @keyframes barPop { 0%{transform:scale(1);} 40%{transform:scale(1.06);} 100%{transform:scale(1);} }
+
+    /* --- confetti canvas + celebration toast --- */
+    #confetti-canvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 300; display: none;
+    }
+    #celebrate-toast {
+      position: fixed; left: 50%; top: 22%;
+      transform: translate(-50%, -20px);
+      z-index: 320; display: none; pointer-events: none;
+      background: rgba(28,32,48,0.94); color: #fff;
+      font-size: 17px; font-weight: 700; text-align: center;
+      padding: 16px 26px; border-radius: 18px; max-width: 82vw;
+      box-shadow: 0 16px 50px rgba(20,30,60,0.4);
+      opacity: 0; transition: opacity 0.35s, transform 0.35s;
+    }
+    #celebrate-toast.show { display: block; opacity: 1; transform: translate(-50%, 0); }
+
+    /* --- print (fallback) --- */
+    @media print {
+      #header, #stats-row { display: none !important; }
+      #gantt-wrapper { margin: 0; border: none; box-shadow: none; }
+      html, body { overflow: visible; height: auto; }
+    }
   </style>
 </head>
 <body>
@@ -667,18 +771,44 @@
     </div>
 
     <div class="controls-group">
-      <input type="text" id="searchInput" class="tg-input" placeholder="🔍  Search tasks..." oninput="renderGantt()" style="width:168px;">
+      <input type="text" id="searchInput" class="tg-input" placeholder="🔍  Search tasks..." oninput="renderGantt()" style="width:150px;">
       <select id="phaseFilter" class="tg-select" onchange="renderGantt()">
         <option value="ALL">All Phases</option>
+      </select>
+      <select id="responsibleFilter" class="tg-select" onchange="renderGantt()" title="Filter by owner">
+        <option value="ALL">All Owners</option>
       </select>
       <div class="zoom-group">
         <button class="zoom-btn" id="zDays" onclick="setZoom('days')">Days</button>
         <button class="zoom-btn active" id="zWeeks" onclick="setZoom('weeks')">Weeks</button>
         <button class="zoom-btn" id="zMonths" onclick="setZoom('months')">Months</button>
       </div>
+
+      <div class="view-wrap">
+        <button class="tg-select" id="viewBtn" onclick="toggleViewMenu(event)" style="display:flex;align-items:center;gap:6px;">
+          <span>👁 View</span><span style="font-size:9px;">▼</span>
+        </button>
+        <div class="view-menu" id="viewMenu">
+          <div class="vm-title">Show / hide</div>
+          <label class="vm-item">Weekends (Fri–Sat)
+            <span class="vm-switch"><input type="checkbox" id="vwWeekends" onchange="setView('showWeekends', this.checked)"><span class="vm-slider"></span></span>
+          </label>
+          <label class="vm-item">Weekday names
+            <span class="vm-switch"><input type="checkbox" id="vwDayNames" onchange="setView('showDayNames', this.checked)"><span class="vm-slider"></span></span>
+          </label>
+          <label class="vm-item">Owner name
+            <span class="vm-switch"><input type="checkbox" id="vwResponsible" onchange="setView('showResponsible', this.checked)"><span class="vm-slider"></span></span>
+          </label>
+          <label class="vm-item">Skip weekends when moving
+            <span class="vm-switch"><input type="checkbox" id="vwWeekendSkip" onchange="setView('weekendSkip', this.checked)"><span class="vm-slider"></span></span>
+          </label>
+        </div>
+      </div>
+
       <button class="tg-btn" onclick="openModal()">
         <span style="font-size:16px;line-height:1">+</span> New Task
       </button>
+      <button class="icon-btn" onclick="exportPDF()" title="Print / Export PDF (full chart)">🖨</button>
       <button class="icon-btn" onclick="resetData()" title="Reset to original data">↺</button>
       <button class="icon-btn" onclick="exportCSV()" title="Export CSV">⬇</button>
     </div>
@@ -695,6 +825,8 @@
 </div>
 
 <div id="meta-tip"></div>
+<canvas id="confetti-canvas"></canvas>
+<div id="celebrate-toast"></div>
 
 <!-- ===== SQUIRCLE MODAL ===== -->
 <div id="modal-overlay">
@@ -824,6 +956,26 @@ let tasks = JSON.parse(localStorage.getItem('gf_tasks_v3') || 'null') || JSON.pa
 let dayWidth = 26;
 let zoom = 'weeks';
 
+const WD = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+// ====== VIEW SETTINGS (persisted) ======
+const DEFAULT_VIEW = { showWeekends:true, showDayNames:false, showResponsible:true, weekendSkip:true };
+let view = Object.assign({}, DEFAULT_VIEW, JSON.parse(localStorage.getItem('gf_view_v1') || 'null') || {});
+
+function saveView() { localStorage.setItem('gf_view_v1', JSON.stringify(view)); }
+function setView(key, val) { view[key] = val; saveView(); renderGantt(); }
+function toggleViewMenu(e) { if (e) e.stopPropagation(); document.getElementById('viewMenu').classList.toggle('open'); }
+function syncViewMenu() {
+  document.getElementById('vwWeekends').checked    = view.showWeekends;
+  document.getElementById('vwDayNames').checked    = view.showDayNames;
+  document.getElementById('vwResponsible').checked = view.showResponsible;
+  document.getElementById('vwWeekendSkip').checked  = view.weekendSkip;
+}
+document.addEventListener('click', function(e){
+  const w = document.querySelector('.view-wrap');
+  if (w && !w.contains(e.target)) document.getElementById('viewMenu').classList.remove('open');
+});
+
 // Persist
 function save() {
   localStorage.setItem('gf_tasks_v3', JSON.stringify(tasks));
@@ -856,7 +1008,44 @@ function diff(a, b) {
 }
 function isWeekend(dt) {
   const d = dt.getDay();
-  return d === 0 || d === 6;
+  return d === 5 || d === 6;   // Israeli weekend: Friday + Saturday
+}
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+// ===== visible-day model (used for hiding weekend columns & snapping) =====
+let VIS = [];                            // array of visible Date objects (midnight, ascending)
+function colBefore(d) {                  // # of visible days strictly before d  → left column of d
+  const t = d.getTime(); let lo = 0, hi = VIS.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (VIS[m].getTime() < t) lo = m + 1; else hi = m; }
+  return lo;
+}
+function colUpto(d) {                     // # of visible days up to & incl. d  → right column boundary
+  const t = d.getTime(); let lo = 0, hi = VIS.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (VIS[m].getTime() <= t) lo = m + 1; else hi = m; }
+  return lo;
+}
+
+// ===== date shifting / weekend-aware scheduling =====
+function shiftTask(t, delta) {
+  if (!delta) return;
+  t.start = fd(addD(pd(t.start), delta));
+  t.end   = fd(addD(pd(t.end),   delta));
+}
+// If a task starts on Fri/Sat, push the whole task forward to Sunday (preserving its length).
+function bumpWeekend(t) {
+  const s = pd(t.start); const day = s.getDay();
+  const b = day === 5 ? 2 : day === 6 ? 1 : 0;
+  if (b) { t.start = fd(addD(s, b)); t.end = fd(addD(pd(t.end), b)); }
+}
+// Move every task AFTER index `idx` by the same delta (keeps the chain together).
+function cascadeFollowers(idx, delta) {
+  if (!delta) return;
+  for (let i = idx + 1; i < tasks.length; i++) shiftTask(tasks[i], delta);
+}
+// Snap the moved task and all followers off the weekend (only when enabled).
+function normalizeFrom(idx) {
+  if (!view.weekendSkip) return;
+  for (let i = idx; i < tasks.length; i++) bumpWeekend(tasks[i]);
 }
 
 // Stats
@@ -891,6 +1080,18 @@ function populateFilters() {
     dl.appendChild(d);
   });
   sel.value = cur || 'ALL';
+
+  // owners
+  const rsel = document.getElementById('responsibleFilter');
+  const rcur = rsel.value;
+  const resps = [...new Set(tasks.map(t => (t.responsible || '').trim()).filter(Boolean))];
+  rsel.innerHTML = '<option value="ALL">All Owners</option>';
+  resps.forEach(r => {
+    const o = document.createElement('option');
+    o.value = r; o.textContent = r;
+    rsel.appendChild(o);
+  });
+  rsel.value = (rcur === 'ALL' || resps.includes(rcur)) ? rcur : 'ALL';
 }
 
 // ===== RENDER =====
@@ -898,13 +1099,16 @@ function renderGantt() {
   const board = document.getElementById('ganttBoard');
   const search = document.getElementById('searchInput').value.toLowerCase();
   const phase = document.getElementById('phaseFilter').value;
+  const respF = document.getElementById('responsibleFilter').value;
 
   const vis = tasks.filter(t =>
     (phase === 'ALL' || t.phase === phase) &&
+    (respF === 'ALL' || (t.responsible || '').trim() === respF) &&
     (t.task.toLowerCase().includes(search) || (t.responsible||'').toLowerCase().includes(search) || (t.notes||'').toLowerCase().includes(search))
   );
 
   if (!vis.length) {
+    VIS = [];
     board.innerHTML = '<div style="padding:40px;text-align:center;color:#8c8c9e;font-size:14px;">No tasks match your search / filter.</div>';
     return;
   }
@@ -913,52 +1117,44 @@ function renderGantt() {
   let maxD = new Date(Math.max(...vis.map(t => pd(t.end))));
   minD = addD(minD, -3);
   maxD = addD(maxD, 7);
-  const total = diff(minD, maxD) + 1;
-  const W = total * dayWidth;
-  const SW = 310;
+  const totalDays = diff(minD, maxD) + 1;
 
-  const today = new Date();
-  const todayOffset = diff(minD, today);
+  // Build the visible-day model (weekend columns removed when hidden)
+  VIS = [];
+  { let c = new Date(minD); for (let i = 0; i < totalDays; i++) { if (view.showWeekends || !isWeekend(c)) VIS.push(new Date(c)); c = addD(c, 1); } }
+  const nCols = VIS.length;
+  const W = nCols * dayWidth;
 
-  // Build month spans
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayVisible = today >= minD && today <= maxD && (view.showWeekends || !isWeekend(today));
+  const todayLeft = colBefore(today) * dayWidth;
+
+  // Month spans (counted over visible days)
   const months = [];
-  let cur = new Date(minD);
-  let lastM = null, mDays = 0;
-  for (let i = 0; i < total; i++) {
-    const mk = cur.getFullYear() + '-' + cur.getMonth();
-    if (mk !== lastM) {
-      if (lastM !== null) months.push({ label: lastMonthLabel, days: mDays });
-      lastM = mk;
-      lastMonthLabel = cur.toLocaleString('en', { month: 'short', year: 'numeric' });
-      mDays = 1;
-    } else { mDays++; }
-    cur = addD(cur, 1);
+  { let key = null, lab = null, cnt = 0;
+    VIS.forEach(d => {
+      const k = d.getFullYear() + '-' + d.getMonth();
+      if (k !== key) { if (key !== null) months.push({ label: lab, days: cnt }); key = k; lab = d.toLocaleString('en', { month:'short', year:'numeric' }); cnt = 1; }
+      else cnt++;
+    });
+    if (key !== null) months.push({ label: lab, days: cnt });
   }
-  if (lastM) months.push({ label: lastMonthLabel, days: mDays });
-
-  // Build days
-  let daysHTML = '';
-  cur = new Date(minD);
-  for (let i = 0; i < total; i++) {
-    const we = isWeekend(cur);
-    daysHTML += `<div class="gantt-day-cell ${we?'weekend':''}" style="width:${dayWidth}px">${zoom==='months' ? '' : cur.getDate()}</div>`;
-    cur = addD(cur, 1);
-  }
-
   let monthsHTML = '';
-  months.forEach(m => {
-    monthsHTML += `<div class="gantt-month-cell" style="width:${m.days*dayWidth}px">${m.label}</div>`;
+  months.forEach(m => { monthsHTML += `<div class="gantt-month-cell" style="width:${m.days*dayWidth}px">${m.label}</div>`; });
+
+  // Day cells
+  const showNames = view.showDayNames && zoom !== 'months';
+  let daysHTML = '';
+  VIS.forEach(d => {
+    const we = isWeekend(d);
+    const dnum = zoom === 'months' ? '' : d.getDate();
+    const inner = showNames ? `<span class="dc-wd">${WD[d.getDay()]}</span><span class="dc-dn">${dnum}</span>` : dnum;
+    daysHTML += `<div class="gantt-day-cell ${we?'weekend':''} ${showNames?'two':''}" style="width:${dayWidth}px">${inner}</div>`;
   });
 
-  // Grid cols helper
-  function gridCols() {
+  function gridColsHTML() {
     let h = '';
-    const c = new Date(minD);
-    for (let i = 0; i < total; i++) {
-      const we = isWeekend(c);
-      h += `<div class="grid-col ${we?'weekend-col':''}" style="width:${dayWidth}px"></div>`;
-      addD(c, 1);
-    }
+    VIS.forEach(d => { h += `<div class="grid-col ${isWeekend(d)?'weekend-col':''}" style="width:${dayWidth}px"></div>`; });
     return h;
   }
 
@@ -971,47 +1167,54 @@ function renderGantt() {
     rowsHTML += `
       <div class="phase-row">
         <div class="phase-label">
-          <span style="font-size:10px">▶</span> ${ph} <span style="font-weight:400;color:#8c8c9e;">(${groups[ph].length})</span>
+          <span style="font-size:10px">▶</span> ${escH(ph)} <span style="font-weight:400;color:#8c8c9e;">(${groups[ph].length})</span>
         </div>
         <div style="flex:1;height:28px;"></div>
       </div>`;
 
     for (const t of groups[ph]) {
-      const off = diff(minD, pd(t.start));
-      const dur = Math.max(1, diff(pd(t.start), pd(t.end)) + 1);
-      const lp = off * dayWidth;
-      const bw = dur * dayWidth;
+      const startCol = colBefore(pd(t.start));
+      const endCol = colUpto(pd(t.end));
+      const lp = startCol * dayWidth;
+      const bw = Math.max(6, (endCol - startCol) * dayWidth);
 
       let badge = 'background:#e8e8f0;color:#8c8c9e;';
       if (t.status === 'In progress') badge = 'background:#fff4e0;color:#c87c00;';
       if (t.status === 'Completed') badge = 'background:#e0f9ec;color:#1a8a4a;';
       if (t.status === 'On hold') badge = 'background:#ffe8e8;color:#c04040;';
 
+      const ownerChip = (view.showResponsible && (t.responsible||'').trim())
+        ? `<span class="owner-chip">${escH(t.responsible)}</span>` : '';
+      const barResp = view.showResponsible ? `<span class="bar-responsible">${escH(t.responsible||'')}</span>` : '';
+
       rowsHTML += `
-        <div class="task-row">
-          <div class="task-sidebar" onclick="openModal(${t.id})">
+        <div class="task-row" data-id="${t.id}">
+          <div class="task-sidebar" draggable="true"
+               ondragstart="rowDragStart(event,${t.id})" ondragover="rowDragOver(event)"
+               ondrop="rowDrop(event)" ondragend="rowDragEnd(event)"
+               onclick="openModal(${t.id})">
+            <span class="drag-handle" title="Drag to reorder">⠿</span>
             <div class="task-name-col">
               <div class="task-name">${escH(t.task)}</div>
             </div>
-            <span class="status-badge" style="${badge}">${t.status}</span>
+            ${ownerChip}
+            <span class="status-badge" style="${badge}">${escH(t.status)}</span>
             <span class="meta-dot"
-                  onmouseenter="showMeta(event, '${escH(t.responsible||'—')}', '${t.start} → ${t.end}')"
+                  onmouseenter="showMeta(event, '${escJS(t.responsible||'—')}', '${t.start} → ${t.end}')"
                   onmouseleave="hideMeta()"
                   onclick="event.stopPropagation()">i</span>
           </div>
           <div class="task-timeline" style="width:${W}px">
-            <div class="grid-bg">
-              ${(() => { let h=''; const c=new Date(minD); for(let i=0;i<total;i++){const we=isWeekend(c);h+=`<div class="grid-col ${we?'weekend-col':''}" style="width:${dayWidth}px"></div>`;c.setDate(c.getDate()+1);} return h; })()}
-            </div>
-            ${todayOffset>=0 && todayOffset<total ? `<div class="today-line" style="left:${todayOffset*dayWidth}px"></div>` : ''}
+            <div class="grid-bg">${gridColsHTML()}</div>
+            ${todayVisible ? `<div class="today-line" style="left:${todayLeft}px"></div>` : ''}
             <div id="bar-${t.id}" class="task-bar"
               style="left:${lp}px;width:${bw}px;background-color:${t.color||PALETTE[0]};"
-              onmousedown="startDrag(event,${t.id},'move',${lp},${bw})"
+              onmousedown="startDrag(event,${t.id},'move')"
               onclick="openModal(${t.id})">
-              <div class="bar-resize bar-resize-left" onmousedown="event.stopPropagation();startDrag(event,${t.id},'rs',${lp},${bw})"></div>
+              <div class="bar-resize bar-resize-left" onmousedown="event.stopPropagation();startDrag(event,${t.id},'rs')"></div>
               <span class="bar-label">${escH(t.task)}</span>
-              <span class="bar-responsible">${escH(t.responsible||'')}</span>
-              <div class="bar-resize bar-resize-right" onmousedown="event.stopPropagation();startDrag(event,${t.id},'re',${lp},${bw})"></div>
+              ${barResp}
+              <div class="bar-resize bar-resize-right" onmousedown="event.stopPropagation();startDrag(event,${t.id},'re')"></div>
             </div>
           </div>
         </div>`;
@@ -1022,12 +1225,12 @@ function renderGantt() {
     <div style="display:flex;flex-direction:column;width:max-content;min-width:100%;">
       <div class="gantt-header-row">
         <div class="gantt-sidebar-cell">
-          <span>Task / Owner</span><span style="font-weight:400;">Click to edit</span>
+          <span>Task / Owner</span><span style="font-weight:400;">Drag ⠿ to reorder</span>
         </div>
         <div class="gantt-timeline-header" style="width:${W}px;position:relative;">
           <div class="gantt-months-row">${monthsHTML}</div>
           <div class="gantt-days-row">${daysHTML}</div>
-          ${todayOffset>=0 && todayOffset<total ? `<div class="today-label" style="left:${todayOffset*dayWidth + dayWidth/2}px">Today</div>` : ''}
+          ${todayVisible ? `<div class="today-label" style="left:${todayLeft + dayWidth/2}px">Today</div>` : ''}
         </div>
       </div>
       ${rowsHTML}
@@ -1039,55 +1242,161 @@ function renderGantt() {
 function escH(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function escJS(s) {   // safe inside a single-quoted JS string within a double-quoted attribute
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
 
-// ===== DRAG =====
+// ===== DRAG: horizontal = move/resize dates · vertical = reorder =====
 let drag = null;
-function startDrag(e, id, mode, origL, origW) {
+function startDrag(e, id, mode) {
   if (e.button !== 0) return;
   e.preventDefault();
-  drag = { id, mode, startX: e.clientX, origL, origW, dw: dayWidth };
+  const bar = document.getElementById('bar-' + id);
+  const t = tasks.find(x => x.id === id);
+  if (!bar || !t) return;
+  drag = {
+    id, mode,
+    axis: mode === 'move' ? 'pending' : 'x',   // whole-bar move can turn into a vertical reorder
+    startX: e.clientX, startY: e.clientY,
+    origL: parseFloat(bar.style.left) || 0,
+    origW: parseFloat(bar.style.width) || dayWidth,
+    origStartCol: colBefore(pd(t.start)),
+    origEndCol: Math.max(colBefore(pd(t.start)), colUpto(pd(t.end)) - 1),
+    moved: false
+  };
   document.addEventListener('mousemove', onDrag);
   document.addEventListener('mouseup', endDrag);
 }
 function onDrag(e) {
   if (!drag) return;
-  const dx = e.clientX - drag.startX;
-  const days = Math.round(dx / drag.dw);
+  const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+  if (drag.axis === 'pending') {
+    if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+    drag.axis = Math.abs(dy) > Math.abs(dx) ? 'reorder' : 'x';
+    if (drag.axis === 'reorder') document.body.classList.add('reordering');
+  }
+  drag.moved = true;
+  if (drag.axis === 'reorder') { showReorderLine(e.clientY); return; }
+
+  const days = Math.round(dx / dayWidth);
   const bar = document.getElementById('bar-' + drag.id);
   if (!bar) return;
   if (drag.mode === 'move') {
-    bar.style.left = (drag.origL + days * drag.dw) + 'px';
+    bar.style.left = (drag.origL + days * dayWidth) + 'px';
   } else if (drag.mode === 'rs') {
-    const newL = drag.origL + days * drag.dw;
-    const newW = Math.max(drag.dw, drag.origW - days * drag.dw);
-    bar.style.left = newL + 'px';
-    bar.style.width = newW + 'px';
+    bar.style.left = (drag.origL + days * dayWidth) + 'px';
+    bar.style.width = Math.max(dayWidth, drag.origW - days * dayWidth) + 'px';
   } else if (drag.mode === 're') {
-    bar.style.width = Math.max(drag.dw, drag.origW + days * drag.dw) + 'px';
+    bar.style.width = Math.max(dayWidth, drag.origW + days * dayWidth) + 'px';
   }
 }
 function endDrag(e) {
   if (!drag) return;
-  const dx = e.clientX - drag.startX;
-  const days = Math.round(dx / drag.dw);
-  const t = tasks.find(x => x.id === drag.id);
-  if (t && days !== 0) {
-    if (drag.mode === 'move') {
-      t.start = fd(addD(pd(t.start), days));
-      t.end   = fd(addD(pd(t.end),   days));
-    } else if (drag.mode === 'rs') {
-      t.start = fd(addD(pd(t.start), days));
+  const d = drag; drag = null;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', endDrag);
+  document.body.classList.remove('reordering');
+  hideReorderLine();
+
+  if (d.axis === 'reorder') {
+    const tgt = rowUnderY(e.clientY);
+    if (tgt && tgt.id !== d.id) reorderTask(d.id, tgt.id, tgt.after);
+    else renderGantt();
+    return;
+  }
+
+  const deltaCols = Math.round((e.clientX - d.startX) / dayWidth);
+  const t = tasks.find(x => x.id === d.id);
+  if (t && deltaCols !== 0 && VIS.length) {
+    const idx = tasks.findIndex(x => x.id === d.id);
+    if (d.mode === 'move') {
+      const nc = clamp(d.origStartCol + deltaCols, 0, VIS.length - 1);
+      const delta = diff(pd(t.start), VIS[nc]);
+      shiftTask(t, delta);
+      cascadeFollowers(idx, delta);
+      normalizeFrom(idx);
+    } else if (d.mode === 're') {
+      const ec = clamp(d.origEndCol + deltaCols, d.origStartCol, VIS.length - 1);
+      const delta = diff(pd(t.end), VIS[ec]);
+      t.end = fd(addD(pd(t.end), delta));
+      cascadeFollowers(idx, delta);   // extending a task pushes the ones after it
+      normalizeFrom(idx);
+    } else if (d.mode === 'rs') {
+      const sc = clamp(d.origStartCol + deltaCols, 0, d.origEndCol);
+      const delta = diff(pd(t.start), VIS[sc]);
+      t.start = fd(addD(pd(t.start), delta));
+      if (view.weekendSkip) bumpWeekend(t);
       if (pd(t.start) > pd(t.end)) t.start = t.end;
-    } else if (drag.mode === 're') {
-      t.end = fd(addD(pd(t.end), days));
-      if (pd(t.end) < pd(t.start)) t.end = t.start;
     }
     save();
   }
-  drag = null;
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', endDrag);
   renderGantt();
+}
+
+// ===== REORDER (shared by bar-vertical-drag and sidebar list drag) =====
+function rowUnderY(y) {
+  const rows = [...document.querySelectorAll('.task-row[data-id]')];
+  if (!rows.length) return null;
+  for (const r of rows) {
+    const b = r.getBoundingClientRect();
+    if (y >= b.top && y <= b.bottom) return { id: +r.dataset.id, after: y > b.top + b.height / 2 };
+  }
+  const first = rows[0].getBoundingClientRect();
+  if (y < first.top) return { id: +rows[0].dataset.id, after: false };
+  return { id: +rows[rows.length - 1].dataset.id, after: true };
+}
+function showReorderLine(y) {
+  let line = document.getElementById('reorder-line');
+  if (!line) { line = document.createElement('div'); line.id = 'reorder-line'; document.body.appendChild(line); }
+  const tgt = rowUnderY(y);
+  const row = tgt && document.querySelector('.task-row[data-id="' + tgt.id + '"]');
+  if (!row) { line.style.display = 'none'; return; }
+  const b = row.getBoundingClientRect();
+  const scroll = document.getElementById('gantt-scroll').getBoundingClientRect();
+  line.style.display = 'block';
+  line.style.left = scroll.left + 'px';
+  line.style.width = scroll.width + 'px';
+  line.style.top = ((tgt.after ? b.bottom : b.top) - 1) + 'px';
+}
+function hideReorderLine() { const l = document.getElementById('reorder-line'); if (l) l.style.display = 'none'; }
+
+function reorderTask(dragId, targetId, placeAfter) {
+  if (dragId === targetId) { renderGantt(); return; }
+  const di = tasks.findIndex(t => t.id === dragId);
+  const target = tasks.find(t => t.id === targetId);
+  if (di < 0 || !target) { renderGantt(); return; }
+  const dragged = tasks[di];
+  tasks.splice(di, 1);
+  dragged.phase = target.phase;                       // dropping into another phase adopts it
+  const ti = tasks.findIndex(t => t.id === targetId);
+  tasks.splice(placeAfter ? ti + 1 : ti, 0, dragged);
+  save();
+  populateFilters();
+  renderGantt();
+}
+
+// Native drag-and-drop for the left task list
+let sideDragId = null;
+function rowDragStart(e, id) {
+  sideDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', String(id)); } catch (_) {}
+  document.body.classList.add('reordering');
+  const row = document.querySelector('.task-row[data-id="' + id + '"]');
+  if (row) row.classList.add('drag-ghost');
+}
+function rowDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; showReorderLine(e.clientY); }
+function rowDrop(e) {
+  e.preventDefault();
+  const tgt = rowUnderY(e.clientY);
+  if (sideDragId != null && tgt && tgt.id !== sideDragId) reorderTask(sideDragId, tgt.id, tgt.after);
+  sideDragId = null;
+}
+function rowDragEnd() {
+  sideDragId = null;
+  document.body.classList.remove('reordering');
+  hideReorderLine();
+  document.querySelectorAll('.task-row.drag-ghost').forEach(r => r.classList.remove('drag-ghost'));
 }
 
 // ===== MODAL =====
@@ -1149,16 +1458,29 @@ function saveTask(e) {
     color: document.getElementById('fColor').value,
     notes: document.getElementById('fNotes').value.trim(),
   };
+  let celebrateId = null;
   if (id) {
     const t = tasks.find(x => x.id === +id);
-    if (t) Object.assign(t, data);
+    if (t) {
+      const oldStart = t.start;
+      const wasDone = t.status === 'Completed';
+      Object.assign(t, data);
+      const idx = tasks.findIndex(x => x.id === +id);
+      const delta = diff(pd(oldStart), pd(t.start));   // editing the start date shifts the rest
+      if (delta) cascadeFollowers(idx, delta);
+      normalizeFrom(idx);
+      if (!wasDone && t.status === 'Completed') celebrateId = t.id;
+    }
   } else {
-    tasks.push({ id: Date.now(), ...data });
+    const nt = { id: Date.now(), ...data };
+    tasks.push(nt);
+    if (nt.status === 'Completed') celebrateId = nt.id;
   }
   save();
   populateFilters();
   renderGantt();
   closeModal();
+  if (celebrateId != null) celebrate(celebrateId);
 }
 
 function deleteCurrentTask() {
@@ -1183,6 +1505,200 @@ function exportCSV() {
   a.click();
 }
 
+// ===== PRINT / EXPORT PDF (full chart, start → end, all tasks) =====
+function exportPDF() {
+  const all = [...tasks];
+  if (!all.length) { alert('No tasks to export.'); return; }
+
+  let minD = new Date(Math.min(...all.map(t => pd(t.start))));
+  let maxD = new Date(Math.max(...all.map(t => pd(t.end))));
+  minD = addD(minD, -1); maxD = addD(maxD, 2);
+  const totalDays = diff(minD, maxD) + 1;
+
+  // Fit the whole span onto a landscape page: sidebar + timeline ≈ 1040px printable width.
+  const SW = 200;
+  const dw = clamp(Math.floor((1040 - SW) / totalDays), 3, 22);
+  const W = totalDays * dw;
+
+  // month + day headers
+  const months = []; { let key=null,lab=null,cnt=0,c=new Date(minD);
+    for (let i=0;i<totalDays;i++){ const k=c.getFullYear()+'-'+c.getMonth();
+      if(k!==key){ if(key!==null)months.push({label:lab,days:cnt}); key=k; lab=c.toLocaleString('en',{month:'short',year:'numeric'}); cnt=1; } else cnt++;
+      c=addD(c,1);
+    } if(key!==null)months.push({label:lab,days:cnt}); }
+  let monthsHTML=''; months.forEach(m=>{ monthsHTML+=`<div class="pm" style="width:${m.days*dw}px">${m.label}</div>`; });
+  let daysHTML=''; { let c=new Date(minD); for(let i=0;i<totalDays;i++){ const we=isWeekend(c);
+    daysHTML+=`<div class="pd ${we?'we':''}" style="width:${dw}px">${dw>=10?c.getDate():''}</div>`; c=addD(c,1); } }
+  function pgrid(){ let h='',c=new Date(minD); for(let i=0;i<totalDays;i++){ h+=`<div class="pg ${isWeekend(c)?'we':''}" style="width:${dw}px"></div>`; c=addD(c,1);} return h; }
+
+  const groups={}; all.forEach(t=>{(groups[t.phase]=groups[t.phase]||[]).push(t);});
+  let rows='';
+  for(const ph of Object.keys(groups)){
+    rows+=`<div class="prow phase"><div class="pside phase">${escH(ph)}</div><div class="ptl" style="width:${W}px"></div></div>`;
+    for(const t of groups[ph]){
+      const off=diff(minD,pd(t.start));
+      const dur=Math.max(1,diff(pd(t.start),pd(t.end))+1);
+      rows+=`<div class="prow"><div class="pside">${escH(t.task)}${t.responsible?` · <b>${escH(t.responsible)}</b>`:''}</div>`+
+            `<div class="ptl" style="width:${W}px"><div class="pgrid">${pgrid()}</div>`+
+            `<div class="pbar" style="left:${off*dw}px;width:${dur*dw}px;background:${t.color||PALETTE[0]}">`+
+            `<span>${escH(t.task)}</span></div></div></div>`;
+    }
+  }
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Medison Gantt — ${fd(minD)} → ${fd(maxD)}</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; color:#1a1a2e; margin:0; padding:14px; }
+    h1 { font-size:16px; margin:0 0 2px; }
+    .sub { font-size:11px; color:#8c8c9e; margin-bottom:12px; }
+    .phdr { display:flex; border-bottom:2px solid #cfd5e2; }
+    .phdr .pside { width:${SW}px; min-width:${SW}px; font-size:10px; font-weight:700; color:#8c8c9e; text-transform:uppercase; padding:4px 6px; }
+    .pmonths { display:flex; }
+    .pm { border-right:1px solid #cfd5e2; font-size:9px; font-weight:700; padding:3px 4px; background:#f4f6fb; }
+    .pdays { display:flex; border-top:1px solid #e2e6ef; }
+    .pd { border-right:1px solid #eef1f6; text-align:center; font-size:7px; color:#9aa0af; padding:1px 0; }
+    .pd.we { background:#f4f5fa; }
+    .prow { display:flex; align-items:center; border-bottom:1px solid #eef1f6; min-height:20px; page-break-inside:avoid; }
+    .prow.phase { background:#eef1fb; }
+    .pside { width:${SW}px; min-width:${SW}px; font-size:9px; padding:3px 6px; border-right:1px solid #cfd5e2; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .pside.phase { font-weight:700; color:#3e5bd0; text-transform:uppercase; font-size:8.5px; }
+    .ptl { position:relative; height:18px; }
+    .pgrid { position:absolute; inset:0; display:flex; }
+    .pg { height:100%; border-right:1px solid #eef1f6; }
+    .pg.we { background:#f6f7fb; }
+    .pbar { position:absolute; top:2px; height:14px; border-radius:4px; display:flex; align-items:center; padding:0 4px; overflow:hidden; }
+    .pbar span { font-size:8px; color:#fff; font-weight:600; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,0.25); }
+    .legend { margin-top:10px; font-size:9px; color:#8c8c9e; }
+  </style></head><body>
+    <h1>Medison — Gantt Chart</h1>
+    <div class="sub">Discovery &amp; Interactive Map &nbsp;·&nbsp; ${fd(minD)} → ${fd(maxD)} &nbsp;·&nbsp; ${all.length} tasks</div>
+    <div class="phdr"><div class="pside">Task / Owner</div><div><div class="pmonths">${monthsHTML}</div><div class="pdays">${daysHTML}</div></div></div>
+    ${rows}
+    <div class="legend">Shaded columns = weekend (Fri–Sat). Generated ${new Date().toLocaleString('en-GB')}.</div>
+    <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Please allow pop-ups to export the PDF.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+// ===== COMPLETION CELEBRATION =====
+const CELEBR_MSGS = [
+  '🎉 סיימת! מגיע לך קפה על חשבון הבוס 🍩',
+  '💪 עוד משימה נכנעה לך — מי אלוף/ה? נכון, את/ה!',
+  '🚀 בּוּם! המשימה הזאת כבר בהיסטוריה. ממשיכים לכבוש!',
+  '✨ עשית את זה! הגאנט גאה בך (וגם אנחנו) 🏆',
+  '🥳 טה-דה! עוד לבֵנה בקיר של הפרויקט המושלם 🧱',
+];
+let celebrIdx = parseInt(localStorage.getItem('gf_celebr_idx') || '0', 10) || 0;
+const CELEBR_EMOJI = ['🎉','🎊','✨','🥳','👏','🌟','💯','🏆','🙌','⭐','🎈','💪','😎','🔥'];
+
+function celebrate(taskId) {
+  const msg = CELEBR_MSGS[celebrIdx % CELEBR_MSGS.length];
+  celebrIdx++; localStorage.setItem('gf_celebr_idx', String(celebrIdx));
+  showToast(msg);
+  playApplause();
+  const bar = document.getElementById('bar-' + taskId);
+  if (bar) { bar.classList.add('bar-celebrate'); setTimeout(() => bar.classList.remove('bar-celebrate'), 8000); }
+  runConfetti(8000);
+}
+
+function showToast(msg) {
+  const el = document.getElementById('celebrate-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.remove('show'), 6500);
+}
+
+let audioCtx = null;
+function playApplause() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioCtx; if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    // applause bed: band-passed noise with a swell
+    const dur = 2.8;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const t = i / ctx.sampleRate;
+      const env = Math.min(1, t * 5) * Math.max(0, 1 - (t - 0.4) / 2.4);
+      data[i] = (Math.random() * 2 - 1) * env * 0.32 * (0.4 + 0.6 * Math.random());
+    }
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1700; bp.Q.value = 0.5;
+    const ng = ctx.createGain(); ng.gain.value = 0.9;
+    src.connect(bp); bp.connect(ng); ng.connect(ctx.destination); src.start(now);
+    // triumphant "ta-da" chord (C major, rising)
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      const st = now + i * 0.07;
+      g.gain.setValueAtTime(0, st);
+      g.gain.linearRampToValueAtTime(0.16, st + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, st + 1.3);
+      o.connect(g); g.connect(ctx.destination); o.start(st); o.stop(st + 1.4);
+    });
+  } catch (e) { /* audio unavailable — silent */ }
+}
+
+let confettiRAF = null;
+function runConfetti(duration) {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  const DPR = window.devicePixelRatio || 1;
+  function size() { canvas.width = innerWidth * DPR; canvas.height = innerHeight * DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+  size();
+  canvas.style.display = 'block';
+  const colors = ['#ff5f6d','#ffc371','#47e891','#43cbe9','#a86bf0','#ffd93b','#ff8fab'];
+  const parts = [];
+  function spawn(n) {
+    for (let i = 0; i < n; i++) {
+      const emoji = Math.random() < 0.34;
+      parts.push({
+        x: Math.random() * innerWidth,
+        y: -20 - Math.random() * innerHeight * 0.3,
+        vx: (Math.random() - 0.5) * 3,
+        vy: 2 + Math.random() * 4,
+        g: 0.06 + Math.random() * 0.05,
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.3,
+        size: emoji ? 16 + Math.random() * 18 : 6 + Math.random() * 7,
+        color: colors[(Math.random() * colors.length) | 0],
+        emoji: emoji ? CELEBR_EMOJI[(Math.random() * CELEBR_EMOJI.length) | 0] : null,
+        shape: Math.random() < 0.5 ? 'rect' : 'circ'
+      });
+    }
+  }
+  const start = performance.now();
+  spawn(160);
+  let lastSpawn = start;
+  function frame(now) {
+    const elapsed = now - start;
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    // keep spawning bursts during the first ~4s
+    if (elapsed < 4000 && now - lastSpawn > 220) { spawn(46); lastSpawn = now; }
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      if (p.y > innerHeight + 40) { parts.splice(i, 1); continue; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      if (p.emoji) { ctx.font = p.size + 'px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.emoji, 0, 0); }
+      else { ctx.fillStyle = p.color;
+        if (p.shape === 'rect') ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size * 0.6);
+        else { ctx.beginPath(); ctx.arc(0, 0, p.size/2, 0, Math.PI*2); ctx.fill(); } }
+      ctx.restore();
+    }
+    if (elapsed < duration || parts.length) { confettiRAF = requestAnimationFrame(frame); }
+    else { canvas.style.display = 'none'; ctx.clearRect(0,0,innerWidth,innerHeight); }
+  }
+  cancelAnimationFrame(confettiRAF);
+  confettiRAF = requestAnimationFrame(frame);
+}
+
 // Close modal on overlay click
 document.getElementById('modal-overlay').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
@@ -1205,6 +1721,7 @@ function showMeta(ev, owner, dates) {
 }
 function hideMeta() { metaTip.style.display = 'none'; }
 
+syncViewMenu();
 populateFilters();
 updateStats();
 renderGantt();
