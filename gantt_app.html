@@ -968,6 +968,7 @@
     .choice:has(input:checked) { border-color: var(--tg-accent); background: #f2f6ff; }
     .choice input[type=radio] { accent-color: var(--tg-accent); margin: 0; }
     .choice select { flex: 1; min-width: 0; }
+    .choice > span { flex: 1; line-height: 1.4; }
     .choice select:disabled { opacity: 0.5; }
     .settings-section { display: flex; flex-direction: column; gap: 6px; }
     .settings-section > .field-label { margin-bottom: 0; }
@@ -1011,6 +1012,29 @@
     .share-link { width: 100%; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--tg-muted); background: #f7f8fc; border: 1px solid var(--tg-border); border-radius: 12px; padding: 9px 12px; resize: none; word-break: break-all; }
     .share-note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: #fff8e6; border: 1px solid #f3e2b3; font-size: 12.5px; color: #6b5a1e; line-height: 1.45; }
     .share-note .ic { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; color: #b8860b; }
+
+    /* ===== TASK CONTEXT MENU (right-click / Shift+F10 on a task) ===== */
+    .ctx-menu { position: fixed; top: 0; left: 0; z-index: 95; min-width: 304px; max-width: 340px; }
+    .ctx-head { padding: 6px 10px 4px; font-size: 11px; color: var(--tg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ctx-head b { color: var(--tg-text); font-weight: 600; }
+    .ctx-wrap { position: relative; }
+    .ctx-wrap > .am-item .am-arrow { margin-left: auto; width: 11px; height: 11px; color: var(--tg-muted); }
+    .ctx-sub { position: absolute; top: -6px; left: calc(100% - 2px); min-width: 190px; display: none; padding: 6px; }
+    .ctx-sub.flip { left: auto; right: calc(100% - 2px); }
+    .ctx-wrap:hover > .ctx-sub, .ctx-wrap.open > .ctx-sub { display: block; }
+    .ctx-wrap.open > .am-item, .ctx-wrap:hover > .am-item { background: #f4f6fd; }
+    .am-item .am-check { width: 14px; height: 14px; color: var(--tg-accent); visibility: hidden; margin-left: auto; }
+    .am-item[aria-checked="true"] .am-check { visibility: visible; }
+    .am-item .am-kbd { margin-left: auto; font-size: 10.5px; color: var(--tg-muted); padding-left: 12px; }
+    .ctx-colors { display: flex; gap: 5px; padding: 4px 10px 8px 36px; flex-wrap: nowrap; }
+    .ctx-color { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; transition: transform 0.12s; }
+    .ctx-color:hover { transform: scale(1.15); }
+    .ctx-color[aria-checked="true"] { border-color: var(--tg-text); box-shadow: inset 0 0 0 2px #fff; }
+    .ctx-color:focus-visible { outline-offset: 1px; }
+    .am-label { display: flex; align-items: center; gap: 10px; padding: 6px 10px 0; font-size: 13px; color: var(--tg-text); }
+    .am-label .ic { width: 16px; height: 16px; color: var(--tg-muted); }
+    .task-bar.flash { box-shadow: 0 0 0 3px rgba(62,136,247,0.55), 0 8px 22px rgba(20,30,60,0.28); }
+    .task-sidebar:focus-visible { outline-offset: -2px; border-radius: 0; }
 
     /* ===== REDUCED MOTION ===== */
     @media (prefers-reduced-motion: reduce) {
@@ -1213,6 +1237,7 @@
 </div>
 
 <div id="meta-tip"></div>
+<div id="ctx-menu" class="app-menu ctx-menu" role="menu" aria-label="Task actions" onkeydown="ctxKey(event)"></div>
 <canvas id="confetti-canvas"></canvas>
 <div id="celebrate-toast" role="status" aria-live="polite"></div>
 
@@ -1563,7 +1588,7 @@ document.getElementById('ganttList').addEventListener('click', function(e) {
   if (btn.dataset.action === 'create') { openWizard(); return; }
   if (btn.dataset.gid && btn.dataset.gid !== store.activeId) switchGantt(btn.dataset.gid);
 });
-function closeAllMenus() { closeAppMenu(false); closeViewMenu(false); closeSwitcher(false); }
+function closeAllMenus() { closeAppMenu(false); closeViewMenu(false); closeSwitcher(false); closeTaskMenu(false); }
 function setView(key, val) { view[key] = val; saveView(); renderGantt(); }
 function toggleViewMenu(e) {
   if (e) e.stopPropagation();
@@ -1592,6 +1617,8 @@ document.addEventListener('click', function(e){
   if (mw && !mw.contains(e.target)) closeAppMenu(false);
   const sw = document.querySelector('.switch-wrap');
   if (sw && !sw.contains(e.target)) closeSwitcher(false);
+  const cm = document.getElementById('ctx-menu');
+  if (cm && !cm.contains(e.target)) closeTaskMenu(false);
 });
 
 // ===== MAIN MENU (⋮) =====
@@ -2420,6 +2447,182 @@ function leaveSnapshot() {
   showToast('Snapshot closed');
 }
 
+// ===== TASK CONTEXT MENU =====
+const STATUS_NEXT = { 'Not started': 'In progress', 'In progress': 'Completed', 'Completed': 'Not started', 'On hold': 'In progress' };
+let ctx = null;   // { id, opener }
+function taskRowKey(e, id) {
+  if (e.target !== e.currentTarget) return;
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(id); }
+  else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); openTaskMenu(e, id); }
+}
+function ctxItem(act, icon, label, extra) {
+  return `<button type="button" class="am-item${extra && extra.danger ? ' danger' : ''}" role="${extra && extra.radio ? 'menuitemradio' : 'menuitem'}" ${extra && extra.radio ? `aria-checked="${!!extra.checked}"` : ''} tabindex="-1" data-act="${act}" ${extra && extra.val != null ? `data-val="${escH(extra.val)}"` : ''}>
+    <svg class="ic" aria-hidden="true"><use href="#${icon}"></use></svg>${label}${extra && extra.radio ? '<svg class="ic am-check" aria-hidden="true"><use href="#ic-check-circle"></use></svg>' : ''}${extra && extra.kbd ? `<span class="am-kbd">${extra.kbd}</span>` : ''}</button>`;
+}
+function ctxSub(icon, label, itemsHTML) {
+  return `<div class="ctx-wrap"><button type="button" class="am-item" role="menuitem" tabindex="-1" aria-haspopup="menu" aria-expanded="false" data-act="sub">
+    <svg class="ic" aria-hidden="true"><use href="#${icon}"></use></svg>${label}<svg class="ic am-arrow" aria-hidden="true"><use href="#ic-caret-right"></use></svg></button>
+    <div class="app-menu ctx-sub" role="menu">${itemsHTML}</div></div>`;
+}
+function openTaskMenu(e, id) {
+  e.preventDefault(); e.stopPropagation();
+  if (isReadOnly()) { showToast('This is a read-only snapshot — open an editable copy first (banner above).'); return; }
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  closeAllMenus(); hideMeta();
+  const g = G(), m = document.getElementById('ctx-menu');
+  const idx = tasks.findIndex(x => x.id === id), followers = tasks.length - idx - 1;
+  const next = STATUS_NEXT[t.status] || 'In progress';
+  const statuses = TEMPLATE_STATUSES.map(st => ctxItem('status', 'ic-check-circle', st, { radio: true, checked: st === t.status, val: st })).join('');
+  const colors = PALETTE.map(c => `<button type="button" class="ctx-color" role="menuitemradio" aria-checked="${(t.color || PALETTE[0]).toLowerCase() === c}" aria-label="Color ${c}" title="${c}" tabindex="-1" data-act="color" data-val="${c}" style="background:${c}"></button>`).join('');
+  const phases = g.settings.usePhases && g.settings.phases.length ? g.settings.phases.map(p => ctxItem('phase', 'ic-caret-right', p, { radio: true, checked: p === t.phase, val: p })).join('') : '';
+  const owners = [...g.settings.owners.map(o => ctxItem('owner', 'ic-users', o, { radio: true, checked: o === (t.responsible || '').trim(), val: o })), ctxItem('owner', 'ic-x', 'No owner', { radio: true, checked: !(t.responsible || '').trim(), val: '' })].join('');
+  const shifts = [[-7, '1 week earlier'], [-1, '1 day earlier'], [1, '1 day later'], [7, '1 week later']].map(([d, l]) => ctxItem('shift', d < 0 ? 'ic-arrow-counter-clockwise' : 'ic-caret-right', l, { val: d })).join('');
+  m.innerHTML = `
+    <div class="ctx-head"><b>${escH(t.task)}</b> · ${escH(t.status)}</div>
+    <div class="am-group">
+      ${ctxItem('next', 'ic-check-circle', 'Mark as <b style="font-weight:600">' + escH(next) + '</b>', { kbd: STATUS_NEXT[t.status] === 'Completed' ? 'celebrates' : '' })}
+      ${ctxSub('ic-pencil-simple', 'Change status', statuses)}
+      <div class="am-label"><svg class="ic" aria-hidden="true"><use href="#ic-image"></use></svg>Color</div>
+      <div class="ctx-colors" role="group" aria-label="Color">${colors}</div>
+    </div>
+    <div class="am-group">
+      ${phases ? ctxSub('ic-caret-right', 'Move to phase', phases) : ''}
+      ${ctxSub('ic-users', 'Assign owner', owners)}
+      ${ctxSub('ic-arrow-counter-clockwise', 'Shift dates' + (followers ? ' <span style="color:var(--tg-muted);font-weight:400">· moves ' + followers + ' after it</span>' : ''), shifts)}
+    </div>
+    <div class="am-group">
+      ${ctxItem('dup', 'ic-copy', 'Duplicate task <span style="color:var(--tg-muted);font-weight:400">· adds a row below</span>')}
+      ${ctxItem('edit', 'ic-pencil-simple', 'Edit task…', { kbd: 'Enter' })}
+      ${ctxItem('show', 'ic-eye', 'Show on timeline')}
+    </div>
+    <div class="am-group">
+      ${ctxItem('delete', 'ic-trash', 'Delete task…', { danger: true })}
+    </div>`;
+  ctx = { id, opener: document.activeElement };
+  m.classList.add('open');
+  // position at the pointer (or next to the row for keyboard), clamped to the viewport
+  const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+  let x = e.clientX, y = e.clientY;
+  if (!x && !y) { const r = e.currentTarget.getBoundingClientRect(); x = r.left + 40; y = r.bottom; }
+  const mw = m.offsetWidth, mh = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(x, vw - mw - 8)) + 'px';
+  m.style.top  = Math.max(8, Math.min(y, vh - mh - 8)) + 'px';
+  m.querySelectorAll('.ctx-sub').forEach(sub => { const wr = sub.parentElement.getBoundingClientRect(); sub.classList.toggle('flip', wr.right + 200 > vw); });
+  const first = m.querySelector('.am-item'); if (first) first.focus();
+}
+function closeTaskMenu(returnFocus) {
+  const m = document.getElementById('ctx-menu');
+  if (!m.classList.contains('open')) return;
+  m.classList.remove('open'); m.innerHTML = '';
+  const c = ctx; ctx = null;
+  if (returnFocus && c && c.opener && document.body.contains(c.opener) && c.opener !== document.body) { try { c.opener.focus(); } catch (_) {} }
+  else if (m.contains(document.activeElement)) document.activeElement.blur();
+}
+document.getElementById('ctx-menu').addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-act]'); if (!btn) return;
+  e.stopPropagation();
+  const act = btn.dataset.act;
+  if (act === 'sub') { const wr = btn.parentElement; const open = !wr.classList.contains('open'); wr.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); if (open) { const f = wr.querySelector('.ctx-sub .am-item'); if (f) f.focus(); } return; }
+  const id = ctx.id, val = btn.dataset.val;
+  closeTaskMenu(true);
+  ctxAction(act, id, val);
+});
+document.getElementById('ctx-menu').addEventListener('mouseover', function(e) {   // hover opens submenus, closes siblings
+  const wr = e.target.closest('.ctx-wrap'); this.querySelectorAll('.ctx-wrap.open').forEach(w => { if (w !== wr) { w.classList.remove('open'); w.querySelector('.am-item').setAttribute('aria-expanded', 'false'); } });
+});
+// keyboard: ↑↓ through visible items, → opens a submenu, ← closes it, ←→ across colors, Enter/Space activates, Esc closes
+function ctxKey(e) {
+  const m = document.getElementById('ctx-menu');
+  const visible = el => !el.closest('.ctx-sub') || el.closest('.ctx-wrap').classList.contains('open');
+  const items = [...m.querySelectorAll('.am-item, .ctx-color')].filter(visible).filter(el => !el.classList.contains('ctx-color') || el.getAttribute('aria-checked') === 'true' || el === document.activeElement);
+  const cur = document.activeElement, i = items.indexOf(cur);
+  const go = n => { e.preventDefault(); items[(n + items.length) % items.length].focus(); };
+  const onColor = cur.classList.contains('ctx-color');
+  switch (e.key) {
+    case 'ArrowDown': go(i + 1); break;
+    case 'ArrowUp': go(i - 1); break;
+    case 'Home': go(0); break;
+    case 'End': go(items.length - 1); break;
+    case 'ArrowRight': e.preventDefault();
+      if (onColor) { const n = cur.nextElementSibling; if (n) n.focus(); }
+      else if (cur.dataset.act === 'sub') cur.click();
+      break;
+    case 'ArrowLeft': e.preventDefault();
+      if (onColor) { const p = cur.previousElementSibling; if (p) p.focus(); }
+      else { const sub = cur.closest('.ctx-sub'); if (sub) { const wr = sub.parentElement; wr.classList.remove('open'); wr.querySelector('.am-item').setAttribute('aria-expanded', 'false'); wr.querySelector('.am-item').focus(); } }
+      break;
+    case 'Enter': case ' ': e.preventDefault(); if (cur && cur.dataset.act) cur.click(); break;
+    case 'Tab': closeTaskMenu(false); break;
+    case 'Escape': e.preventDefault(); e.stopPropagation(); closeTaskMenu(true); break;
+  }
+}
+function ctxAction(act, id, val) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  const idx = tasks.findIndex(x => x.id === id);
+  switch (act) {
+    case 'next': setTaskStatus(id, STATUS_NEXT[t.status] || 'In progress'); break;
+    case 'status': setTaskStatus(id, val); break;
+    case 'color': t.color = val; save(); renderGantt(); showToast('Color changed for “' + t.task + '”'); break;
+    case 'phase': if (t.phase !== val) { t.phase = val; save(); populateFilters(); renderGantt(); showToast('“' + t.task + '” moved to ' + val); } break;
+    case 'owner': t.responsible = val; save(); populateFilters(); renderGantt(); showToast(val ? '“' + t.task + '” assigned to ' + val : '“' + t.task + '” has no owner now'); break;
+    case 'shift': {
+      const d = +val, before = deep(tasks);
+      shiftTask(t, d); cascadeFollowers(idx, d); normalizeFrom(idx);
+      const moved = tasks.length - idx;
+      save(); renderGantt();
+      showToast('“' + t.task + '” moved ' + (Math.abs(d) === 7 ? '1 week ' : '1 day ') + (d < 0 ? 'earlier' : 'later') + (moved > 1 ? ' with ' + (moved - 1) + ' task' + (moved === 2 ? '' : 's') + ' after it' : ''),
+        { action: { label: 'Undo', fn: () => { tasks = before; save(); renderGantt(); showToast('Dates restored'); } } });
+      break;
+    }
+    case 'dup': {
+      const copy = deep(t); copy.id = Date.now(); copy.task = t.task + ' (copy)';
+      tasks.splice(idx + 1, 0, copy); save(); renderGantt();
+      showToast('Duplicated — “' + copy.task + '” added below', { action: { label: 'Undo', fn: () => { tasks = tasks.filter(x => x.id !== copy.id); save(); renderGantt(); showToast('Copy removed'); } } });
+      break;
+    }
+    case 'edit': openModal(id); break;
+    case 'show': {
+      const bar = document.getElementById('bar-' + id); if (!bar) break;
+      bar.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest', inline: 'center' });
+      bar.classList.add('flash'); setTimeout(() => bar.classList.remove('flash'), 1400);
+      break;
+    }
+    case 'delete': deleteTaskFlow(id); break;
+  }
+}
+function setTaskStatus(id, status) {
+  const t = tasks.find(x => x.id === id); if (!t || t.status === status) return;
+  const wasDone = t.status === 'Completed';
+  t.status = status; save(); renderGantt();
+  if (status === 'Completed' && !wasDone) celebrate(id);
+  else showToast('“' + t.task + '” → ' + status);
+}
+// Delete with a choice: close the gap (pull the following tasks earlier by this task's length) or leave them; always undoable.
+function deleteTaskFlow(id) {
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  const idx = tasks.findIndex(x => x.id === id), followers = tasks.length - idx - 1;
+  const days = Math.max(1, diff(pd(t.start), pd(t.end)) + 1);
+  confirmDialog({
+    title: 'Delete “' + t.task + '”?',
+    desc: t.start + ' → ' + t.end + ' · ' + days + ' day' + (days === 1 ? '' : 's') + (t.responsible ? ' · ' + t.responsible : ''),
+    html: followers ? `<div style="display:flex;flex-direction:column;gap:8px">
+      <label class="choice"><input type="radio" name="delMode" value="keep" checked><span>Leave the other tasks where they are</span></label>
+      <label class="choice"><input type="radio" name="delMode" value="pull"><span>Pull the ${followers} task${followers === 1 ? '' : 's'} after it <b>${days} day${days === 1 ? '' : 's'} earlier</b> to close the gap${view.weekendSkip ? ' (weekends skipped)' : ''}</span></label>
+    </div>` : '<p>No tasks come after it, so nothing else moves.</p>',
+    items: ['You can undo for 8 seconds after deleting.'],
+    confirmLabel: 'Delete task',
+    onConfirm: () => {
+      const mode = (document.querySelector('input[name=delMode]:checked') || {}).value || 'keep';
+      const before = deep(tasks);
+      tasks.splice(idx, 1);
+      if (mode === 'pull' && followers) { for (let i = idx; i < tasks.length; i++) shiftTask(tasks[i], -days); normalizeFrom(idx); }
+      save(); populateFilters(); renderGantt();
+      showToast('Deleted “' + t.task + '”' + (mode === 'pull' && followers ? ' — ' + followers + ' task' + (followers === 1 ? '' : 's') + ' pulled ' + days + ' day' + (days === 1 ? '' : 's') + ' earlier' : ''),
+        { duration: 8000, action: { label: 'Undo', fn: () => { tasks = before; save(); populateFilters(); renderGantt(); showToast('“' + t.task + '” restored'); } } });
+    }
+  });
+}
+
 // ===== SETTINGS (logo · Owners & Phases) — edits a working copy, committed on Save, with Undo =====
 let settingsW = null;
 function openSettingsDialog() {
@@ -2574,6 +2777,7 @@ document.addEventListener('keydown', function(e) {
     if (document.getElementById('appMenu').classList.contains('open')) { closeAppMenu(true); return; }
     if (document.getElementById('viewMenu').classList.contains('open')) { closeViewMenu(true); return; }
     if (document.getElementById('ganttList').classList.contains('open')) { closeSwitcher(true); return; }
+    if (document.getElementById('ctx-menu').classList.contains('open')) { e.preventDefault(); closeTaskMenu(true); return; }
     if (dialogOpen) { e.preventDefault(); dialogEscape(); return; }
     if (modalOpen) { e.preventDefault(); closeModal(); return; }
   }
@@ -2733,6 +2937,7 @@ const NO_PHASE_LABEL = 'No phase';
 
 // ===== RENDER =====
 function renderGantt() {
+  closeTaskMenu(false);
   const board = document.getElementById('ganttBoard');
   const search = document.getElementById('searchInput').value.toLowerCase();
   const phase = document.getElementById('phaseFilter').value;
@@ -2839,9 +3044,11 @@ function renderGantt() {
 
       rowsHTML += `
         <div class="task-row" data-id="${t.id}">
-          <div class="task-sidebar" draggable="true"
+          <div class="task-sidebar" draggable="true" tabindex="0" role="button"
+               aria-label="${escH(t.task)} · ${escH(t.status)} · ${t.start} to ${t.end}. Enter to edit, Shift+F10 for actions"
                ondragstart="rowDragStart(event,${t.id})" ondragover="rowDragOver(event)"
                ondrop="rowDrop(event)" ondragend="rowDragEnd(event)"
+               oncontextmenu="openTaskMenu(event,${t.id})" onkeydown="taskRowKey(event,${t.id})"
                onclick="openModal(${t.id})">
             <span class="drag-handle" title="Drag to reorder" aria-hidden="true"><svg class="ic"><use href="#ic-dots-six-vertical"></use></svg></span>
             <div class="task-name-col">
@@ -2860,6 +3067,7 @@ function renderGantt() {
             <div id="bar-${t.id}" class="task-bar"
               style="left:${lp}px;width:${bw}px;background-color:${t.color||PALETTE[0]};"
               onmousedown="startDrag(event,${t.id},'move')"
+              oncontextmenu="openTaskMenu(event,${t.id})"
               onclick="openModal(${t.id})">
               <div class="bar-resize bar-resize-left" onmousedown="event.stopPropagation();startDrag(event,${t.id},'rs')"></div>
               <span class="bar-label">${escH(t.task)}</span>
@@ -3153,12 +3361,8 @@ function saveTask(e) {
 function deleteCurrentTask() {
   const id = +document.getElementById('fId').value;
   if (!id) return;
-  if (!confirm('Delete this task? This cannot be undone.')) return;
-  tasks = tasks.filter(t => t.id !== id);
-  save();
-  populateFilters();
-  renderGantt();
   closeModal();
+  deleteTaskFlow(id);
 }
 
 function fileSlug(name) { return (String(name || 'Gantt').replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '') || 'Gantt').slice(0, 60); }
