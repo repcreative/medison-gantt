@@ -31,7 +31,8 @@
       --tg-row-phase: rgba(245,247,255,0.6);
       --tg-grid: #eaedf3;
       --tg-text: #1a1a2e;
-      --tg-muted: #8c8c9e;
+      --tg-muted: #666a7d;      /* 5.35:1 on white (WCAG AA) */
+      --tg-danger: #c93636;     /* 5.17:1 on white */
       --tg-accent: #3e88f7;
       --tg-border: #dde2ea;
       --tg-shadow: 0 1px 3px rgba(30,45,90,0.07);
@@ -80,6 +81,28 @@
     .logo-img { height: 18px; width: auto; object-fit: contain; display: block; }
     .logo-img.gada { height: 24px; }
     .logo-group { display: flex; align-items: center; gap: 11px; }
+    #logo-custom { max-height: 28px; max-width: 160px; width: auto; height: auto; }
+    .title-block { min-width: 0; }
+    .project-title, .project-subtitle { overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
+
+    /* --- gantt switcher (header) --- */
+    .switch-wrap { position: relative; min-width: 0; }
+    .gantt-switch {
+      display: flex; align-items: center; gap: 6px; max-width: 280px;
+      background: #f4f6fa; border: 1px solid var(--tg-border); border-radius: 20px;
+      padding: 5px 12px; font: inherit; font-size: 12.5px; font-weight: 600;
+      color: var(--tg-text); cursor: pointer; transition: background 0.15s;
+    }
+    .gantt-switch:hover, .gantt-switch[aria-expanded="true"] { background: #e8ecf5; }
+    .gantt-switch .gs-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gantt-switch .ic { width: 12px; height: 12px; color: var(--tg-muted); }
+    .gantt-list { left: 0; right: auto; min-width: 320px; max-width: 420px; }
+    .gl-main { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 1px; }
+    .gl-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gl-meta { font-size: 11px; color: var(--tg-muted); font-weight: 400; }
+    .am-item .gl-check { width: 15px; height: 15px; color: var(--tg-accent); visibility: hidden; }
+    .am-item.active .gl-check { visibility: visible; }
+    .am-item.active { background: #f4f6fd; }
     .logo-divider { width: 1px; height: 20px; background: #d6dae4; flex-shrink: 0; }
 
     /* --- CONTROLS --- */
@@ -417,7 +440,7 @@
       padding: 0 10px;
       cursor: grab;
       user-select: none;
-      transition: box-shadow 0.15s, transform 0.1s;
+      transition: box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
       overflow: hidden;
       min-width: 4px;
     }
@@ -426,6 +449,24 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     .task-bar:active { cursor: grabbing; }
+
+    /* --- stat-chip hover → highlight matching tasks on the board --- */
+    .stat-chip { transition: border-color 0.15s, box-shadow 0.15s; cursor: default; }
+    .stat-chip:hover { border-color: #c3cde3; box-shadow: 0 2px 8px rgba(30,45,90,0.10); }
+    .task-row.hl-dim .task-sidebar > *, .task-row.hl-dim .task-bar { opacity: 0.45; }
+    .task-row.hl-dim .task-sidebar > * { transition: opacity 0.2s ease; }
+    .task-bar.hl-match {
+      transform: scale(1.06);                      /* transform only → no layout shift for other rows */
+      box-shadow: 0 10px 26px rgba(20,30,60,0.28), 0 2px 6px rgba(20,30,60,0.12);
+      z-index: 3;
+    }
+    .task-bar.hl-match::after {                    /* one-off shine sweep */
+      content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 50%;
+      background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%);
+      pointer-events: none;
+      animation: barShine 600ms ease-out 1 forwards;
+    }
+    @keyframes barShine { from { left: -60%; } to { left: 120%; } }
 
     .bar-label {
       font-size: 11px;
@@ -593,7 +634,7 @@
 
     .delete-btn {
       background: none; border: none;
-      color: #e84040; font-size: 12px; font-weight: 600;
+      font-size: 12px; font-weight: 600;
       cursor: pointer; padding: 6px 10px; border-radius: 8px;
       display: flex; align-items: center; gap: 5px;
       transition: background 0.15s;
@@ -720,6 +761,268 @@
     }
     #celebrate-toast.show { display: block; opacity: 1; transform: translate(-50%, 0); }
 
+
+    /* ===== ICONS (Phosphor sprite, inline) ===== */
+    .ic { width: 1em; height: 1em; fill: currentColor; display: inline-block; vertical-align: -0.125em; flex-shrink: 0; pointer-events: none; }
+    .icon-btn .ic, .tg-btn .ic, .tg-select .ic { width: 15px; height: 15px; }
+    .ic-caret { width: 11px !important; height: 11px !important; opacity: 0.8; }
+    .search-wrap { position: relative; display: inline-flex; align-items: center; }
+    .search-wrap .ic { position: absolute; left: 12px; width: 13px; height: 13px; color: var(--tg-muted); }
+    .search-wrap .tg-input { padding-left: 31px; }
+    .phase-label .ic { width: 11px; height: 11px; }
+    .drag-handle .ic { width: 13px; height: 13px; }
+
+    /* ===== FOCUS (keyboard) ===== */
+    :focus-visible { outline: 2px solid var(--tg-accent); outline-offset: 2px; border-radius: 6px; }
+    .tg-input:focus-visible, .tg-select:focus-visible, .field-input:focus-visible {
+      outline: none; border-color: var(--tg-accent); box-shadow: 0 0 0 3px rgba(62,136,247,0.28);
+    }
+    .icon-btn:focus-visible, .modal-close-btn:focus-visible { border-radius: 50%; }
+    .icon-btn[aria-expanded="true"] { background: #e8ecf5; color: var(--tg-text); }
+
+    /* ===== MAIN MENU (dots-three-vertical) ===== */
+    .menu-wrap { position: relative; }
+    .app-menu {
+      position: absolute; right: 0; top: calc(100% + 6px);
+      background: #fff; border: 1px solid var(--tg-glass-border);
+      border-radius: 14px; box-shadow: 0 8px 28px rgba(30,45,90,0.16);
+      padding: 6px; min-width: 284px; z-index: 60; display: none;
+    }
+    .app-menu.open { display: block; animation: menuIn 0.14s ease-out; }
+    @keyframes menuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+    .am-group + .am-group { border-top: 1px solid #eef1f6; margin-top: 4px; padding-top: 4px; }
+    .am-title {
+      font-size: 10px; font-weight: 700; color: var(--tg-muted);
+      text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 10px 4px;
+    }
+    .am-item {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      padding: 8px 10px; border-radius: 9px; border: none; background: none;
+      font: inherit; font-size: 13px; color: var(--tg-text); cursor: pointer; text-align: left; white-space: nowrap;
+    }
+    .am-item .ic { width: 16px; height: 16px; color: var(--tg-muted); }
+    .am-item:hover, .am-item:focus-visible { background: #f4f6fd; outline: none; }
+    .am-item.danger, .am-item.danger .ic { color: var(--tg-danger); }
+    .am-item.danger:hover, .am-item.danger:focus-visible { background: #fff0f0; }
+    .am-item[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+    .am-item[aria-disabled="true"]:hover { background: none; }
+    .am-soon {
+      margin-left: auto; font-size: 9px; font-weight: 700; color: var(--tg-muted);
+      background: #eef1f6; padding: 1px 6px; border-radius: 8px; letter-spacing: 0.04em;
+    }
+
+    /* ===== CONFIRM DIALOG (destructive actions) ===== */
+    #confirm-overlay {
+      position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center;
+      z-index: 110; padding: 16px;
+    }
+    #confirm-overlay.open { display: flex; }
+    #confirm-box {
+      background: #fff; border: 1px solid #eef0f5; border-radius: 24px;
+      width: 100%; max-width: 440px;
+      box-shadow: 0 24px 60px rgba(60,80,180,0.18);
+      animation: modalIn 0.22s cubic-bezier(0.16,1,0.3,1);
+    }
+    .confirm-icon {
+      width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0;
+      background: #fff0f0; color: var(--tg-danger);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .confirm-icon .ic { width: 20px; height: 20px; }
+    #confirm-box .modal-body { gap: 10px; }
+    #confirm-box .modal-body p { margin: 0; font-size: 13px; line-height: 1.5; color: #3c4256; }
+    #confirm-box .modal-body ul { margin: 0; padding: 10px 14px; list-style: none; background: #f7f8fc; border-radius: 12px; font-size: 12.5px; color: #3c4256; display: flex; flex-direction: column; gap: 4px; }
+    #confirm-box .modal-body li b { color: var(--tg-text); }
+    .danger-btn {
+      background: var(--tg-danger); border: none; color: #fff;
+      font-size: 13px; font-weight: 600; padding: 8px 22px;
+      border-radius: 14px; cursor: pointer; transition: opacity 0.15s; font-family: inherit;
+    }
+    .danger-btn:hover { opacity: 0.88; }
+    .delete-btn { color: var(--tg-danger); }
+
+    /* ===== GENERIC DIALOG (wizard, rename, settings) ===== */
+    #dialog-overlay {
+      position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center;
+      z-index: 105; padding: 16px;
+    }
+    #dialog-overlay.open { display: flex; }
+    #dialog-box {
+      background: #fff; border: 1px solid #eef0f5; border-radius: 24px;
+      width: 100%; max-width: 560px; max-height: calc(100vh - 32px);
+      display: flex; flex-direction: column;
+      box-shadow: 0 24px 60px rgba(60,80,180,0.18);
+      animation: modalIn 0.22s cubic-bezier(0.16,1,0.3,1);
+    }
+    #dialog-box .modal-body { overflow: auto; }
+    .dlg-left { display: flex; gap: 8px; align-items: center; }
+    .btn-ghost {
+      background: #f4f6fa; border: 1px solid var(--tg-border); border-radius: 14px;
+      padding: 7px 14px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--tg-text);
+      cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s;
+    }
+    .btn-ghost:hover { background: #e8ecf5; }
+    .btn-ghost[disabled], .btn-ghost[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+    .btn-ghost .ic { width: 13px; height: 13px; }
+    .save-btn[disabled] { opacity: 0.45; cursor: default; }
+    .req { color: var(--tg-danger); }
+    .field-hint { font-size: 11px; color: var(--tg-muted); margin-top: 4px; }
+    .field-error { font-size: 11.5px; color: var(--tg-danger); margin-top: 4px; min-height: 0; }
+    .field-error:empty { display: none; }
+
+    /* wizard step indicator */
+    .wiz-steps { display: flex; align-items: center; padding: 14px 24px 0; }
+    .wiz-step { display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 600; color: var(--tg-muted); white-space: nowrap; }
+    .wiz-num {
+      width: 22px; height: 22px; border-radius: 50%; background: #eef1f6; color: var(--tg-muted);
+      display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+    }
+    .wiz-num .ic { width: 12px; height: 12px; }
+    .wiz-step.current { color: var(--tg-text); }
+    .wiz-step.current .wiz-num { background: var(--tg-accent); color: #fff; }
+    .wiz-step.done .wiz-num { background: #e0f9ec; color: #1a8a4a; }
+    .wiz-line { flex: 1; height: 1px; background: #e3e7ee; margin: 0 10px; min-width: 14px; }
+
+    /* logo drop zone + header preview */
+    .drop-zone {
+      border: 1.5px dashed #cfd5e2; border-radius: 14px; padding: 16px; background: #f9fafc;
+      cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px;
+      text-align: center; color: var(--tg-muted); font-size: 12.5px; transition: border-color 0.15s, background 0.15s;
+    }
+    .drop-zone:hover, .drop-zone.over { border-color: var(--tg-accent); background: #f2f6ff; }
+    .drop-zone .ic { width: 28px; height: 28px; color: #a9b1c6; }
+    .drop-zone b { color: var(--tg-text); font-weight: 600; }
+    .drop-zone.has-logo { flex-direction: row; justify-content: space-between; text-align: left; cursor: default; border-style: solid; background: #fff; }
+    .drop-zone.has-logo .logo-preview { max-height: 32px; max-width: 170px; display: block; }
+    .hdr-preview {
+      display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+      border: 1px solid var(--tg-border); border-radius: 12px; background: #fff; overflow: hidden;
+    }
+    .hdr-preview .project-title, .hdr-preview .project-subtitle { max-width: 260px; }
+    .hdr-preview .logo-img { height: 18px; } .hdr-preview .logo-img.gada { height: 24px; }
+    .hdr-preview .custom-logo { max-height: 28px; max-width: 150px; }
+
+    /* list editor (Owners & Phases) */
+    .le-block { border: 1px solid var(--tg-border); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .le-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .le-title { font-size: 12.5px; font-weight: 700; color: var(--tg-text); }
+    .le-sub { font-size: 11px; color: var(--tg-muted); margin-top: 2px; }
+    .le-list { display: flex; flex-direction: column; gap: 4px; }
+    .le-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 4px; border-radius: 9px; background: #f7f8fc; }
+    .le-row.dragging { opacity: 0.4; }
+    .le-row.drop-before { box-shadow: 0 -2px 0 0 var(--tg-accent); }
+    .le-row.drop-after  { box-shadow: 0 2px 0 0 var(--tg-accent); }
+    .le-handle { color: #c2c7d4; cursor: grab; display: flex; padding: 2px; }
+    .le-handle .ic { width: 13px; height: 13px; }
+    .le-text {
+      flex: 1; font-size: 13px; padding: 3px 7px; border-radius: 6px; cursor: text; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; border: none; text-align: left; font-family: inherit; color: var(--tg-text);
+    }
+    .le-text:hover { background: #eceff8; }
+    .le-input { flex: 1; font: inherit; font-size: 13px; padding: 3px 7px; border: 1px solid var(--tg-accent); border-radius: 6px; outline: none; background: #fff; min-width: 0; }
+    .le-del { background: none; border: none; cursor: pointer; color: var(--tg-muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .le-del:hover { background: #fff0f0; color: var(--tg-danger); }
+    .le-del .ic { width: 12px; height: 12px; }
+    .le-add { display: flex; gap: 6px; }
+    .le-add .field-input { padding: 6px 12px; }
+    .le-empty { font-size: 12px; color: var(--tg-muted); padding: 4px 2px; }
+    .le-collapsed { display: none; }
+
+    /* wizard: task-source cards */
+    .src-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .src-card {
+      border: 1.5px solid var(--tg-border); border-radius: 14px; padding: 14px 12px; background: #fff;
+      text-align: left; cursor: pointer; font: inherit; display: flex; flex-direction: column; gap: 6px; color: var(--tg-text);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .src-card:hover { border-color: #b9c9ee; background: #f9fbff; }
+    .src-card[aria-checked="true"] { border-color: var(--tg-accent); background: #f2f6ff; box-shadow: inset 0 0 0 1px var(--tg-accent); }
+    .src-card[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+    .src-card .ic { width: 24px; height: 24px; color: var(--tg-accent); }
+    .src-card b { font-size: 13px; }
+    .src-card span { font-size: 11.5px; color: var(--tg-muted); line-height: 1.4; }
+
+    /* empty state */
+    .empty-state { padding: 56px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--tg-muted); }
+    .empty-state .ic { width: 36px; height: 36px; color: #b9c2d6; }
+    .empty-state h3 { margin: 6px 0 0; font-size: 15px; color: var(--tg-text); }
+    .empty-state p { margin: 0 0 12px; font-size: 13px; max-width: 380px; line-height: 1.5; }
+    .empty-actions { display: flex; gap: 8px; }
+
+    /* toast with an action (Undo) */
+    #celebrate-toast.show.with-action { display: flex; align-items: center; gap: 14px; pointer-events: auto; font-size: 14px; font-weight: 600; padding: 11px 12px 11px 20px; }
+    #celebrate-toast .toast-btn {
+      background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.32); color: #fff;
+      font: inherit; font-weight: 700; padding: 6px 14px; border-radius: 12px; cursor: pointer; white-space: nowrap;
+    }
+    #celebrate-toast .toast-btn:hover { background: rgba(255,255,255,0.26); }
+
+    /* choice rows (used inside confirm dialogs: move / unassign) */
+    .choice { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--tg-border); border-radius: 10px; font-size: 13px; color: var(--tg-text); cursor: pointer; }
+    .choice:has(input:checked) { border-color: var(--tg-accent); background: #f2f6ff; }
+    .choice input[type=radio] { accent-color: var(--tg-accent); margin: 0; }
+    .choice select { flex: 1; min-width: 0; }
+    .choice select:disabled { opacity: 0.5; }
+    .settings-section { display: flex; flex-direction: column; gap: 6px; }
+    .settings-section > .field-label { margin-bottom: 0; }
+
+    /* ===== IMPORT (file zone + preview table) ===== */
+    .file-zone { border: 1.5px dashed #cfd5e2; border-radius: 14px; padding: 18px; background: #f9fafc; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; color: var(--tg-muted); font-size: 12.5px; transition: border-color 0.15s, background 0.15s; }
+    .file-zone:hover, .file-zone.over { border-color: var(--tg-accent); background: #f2f6ff; }
+    .file-zone .ic { width: 28px; height: 28px; color: #a9b1c6; }
+    .file-zone b { color: var(--tg-text); font-weight: 600; }
+    .file-zone.has-file { border-style: solid; background: #fff; flex-direction: row; justify-content: space-between; text-align: left; cursor: default; }
+    .file-zone.has-file .ic { width: 20px; height: 20px; color: var(--tg-accent); }
+    .imp-summary { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12.5px; align-items: center; }
+    .imp-pill { padding: 3px 10px; border-radius: 10px; font-weight: 600; font-size: 12px; }
+    .imp-pill.ok { background: #e0f9ec; color: #1a8a4a; } .imp-pill.bad { background: #ffe8e8; color: #b03030; } .imp-pill.info { background: #eef1f6; color: var(--tg-muted); }
+    .imp-wrap { max-height: 42vh; overflow: auto; border: 1px solid var(--tg-border); border-radius: 12px; }
+    .imp-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    .imp-table th { position: sticky; top: 0; background: #f7f8fc; text-align: left; padding: 7px 9px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--tg-muted); border-bottom: 1px solid var(--tg-border); white-space: nowrap; }
+    .imp-table td { padding: 6px 9px; border-bottom: 1px solid #eef1f6; vertical-align: top; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .imp-table tr.ok td:first-child { box-shadow: inset 3px 0 0 #33c77a; }
+    .imp-table tr.bad { background: #fff6f6; }
+    .imp-table tr.bad td:first-child { box-shadow: inset 3px 0 0 #d83a3a; }
+    .imp-table td.reason { color: #b03030; white-space: normal; max-width: 260px; font-size: 11.5px; }
+    .imp-table td.num { color: var(--tg-muted); width: 32px; }
+
+    /* ===== SNAPSHOT (read-only copy opened from a share link) ===== */
+    #snap-banner {
+      display: none; align-items: center; gap: 14px; flex-wrap: wrap;
+      padding: 10px 20px; background: #eaf2ff; border-bottom: 1px solid #cfdcf5;
+      font-size: 13px; color: var(--tg-text); flex-shrink: 0;
+    }
+    #snap-banner.show { display: flex; }
+    #snap-banner .ic { width: 18px; height: 18px; color: var(--tg-accent); }
+    #snap-banner .snap-text { flex: 1; min-width: 240px; }
+    #snap-banner .snap-text b { font-weight: 700; }
+    #snap-banner .snap-sub { font-size: 11.5px; color: var(--tg-muted); margin-top: 2px; }
+    #snap-banner .snap-actions { display: flex; gap: 8px; }
+    body.readonly .task-bar { cursor: default; }
+    body.readonly .task-bar .bar-resize { display: none; }
+    body.readonly .drag-handle { visibility: hidden; }
+    body.readonly .task-sidebar { cursor: default; }
+    .share-link { width: 100%; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--tg-muted); background: #f7f8fc; border: 1px solid var(--tg-border); border-radius: 12px; padding: 9px 12px; resize: none; word-break: break-all; }
+    .share-note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: #fff8e6; border: 1px solid #f3e2b3; font-size: 12.5px; color: #6b5a1e; line-height: 1.45; }
+    .share-note .ic { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; color: #b8860b; }
+
+    /* ===== REDUCED MOTION ===== */
+    @media (prefers-reduced-motion: reduce) {
+      .app-menu.open, #modal-box, #confirm-box, #dialog-box { animation: none; }
+      .task-bar.bar-celebrate, .task-bar.bar-celebrate::after { animation: none; }
+      .task-bar:hover { transform: none; }
+      .task-bar.hl-match { transform: none; box-shadow: 0 3px 10px rgba(20,30,60,0.22); }
+      .task-bar.hl-match::after { display: none; }
+      .task-row.hl-dim .task-sidebar > *, .task-row.hl-dim .task-bar { transition: none; }
+      #celebrate-toast { transition: opacity 0.2s; transform: translate(-50%, 0); }
+    }
+
     /* --- print (fallback) --- */
     @media print {
       #header, #stats-row { display: none !important; }
@@ -729,20 +1032,77 @@
   </style>
 </head>
 <body>
+<!-- Phosphor Icons (MIT) — inline sprite. ic-* = fill weight (<24px), ic-*-o = regular/outline weight (>=24px) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="ic-magnifying-glass" viewBox="0 0 256 256"><path d="M168,112a56,56,0,1,1-56-56A56,56,0,0,1,168,112Zm61.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88,88,0,1,1,11.32-11.31l50.06,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z"/></symbol>
+  <symbol id="ic-eye" viewBox="0 0 256 256"><path d="M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z"/></symbol>
+  <symbol id="ic-printer" viewBox="0 0 256 256"><path d="M240,96v80a8,8,0,0,1-8,8H200v32a8,8,0,0,1-8,8H64a8,8,0,0,1-8-8V184H24a8,8,0,0,1-8-8V96c0-13.23,11.36-24,25.33-24H56V40a8,8,0,0,1,8-8H192a8,8,0,0,1,8,8V72h14.67C228.64,72,240,82.77,240,96ZM72,72H184V48H72Zm112,88H72v48H184Zm16-44a12,12,0,1,0-12,12A12,12,0,0,0,200,116Z"/></symbol>
+  <symbol id="ic-arrow-counter-clockwise" viewBox="0 0 256 256"><path d="M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L60.63,81.29l17,17A8,8,0,0,1,72,112H24a8,8,0,0,1-8-8V56A8,8,0,0,1,29.66,50.3L49.31,70,60.25,60A96,96,0,0,1,224,128Z"/></symbol>
+  <symbol id="ic-download-simple" viewBox="0 0 256 256"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40A8,8,0,0,0,168,96H136V32a8,8,0,0,0-16,0V96H88a8,8,0,0,0-5.66,13.66Z"/></symbol>
+  <symbol id="ic-upload-simple" viewBox="0 0 256 256"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0ZM88,80h32v64a8,8,0,0,0,16,0V80h32a8,8,0,0,0,5.66-13.66l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,88,80Z"/></symbol>
+  <symbol id="ic-caret-down" viewBox="0 0 256 256"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,48,88H208a8,8,0,0,1,5.66,13.66Z"/></symbol>
+  <symbol id="ic-caret-right" viewBox="0 0 256 256"><path d="M181.66,133.66l-80,80A8,8,0,0,1,88,208V48a8,8,0,0,1,13.66-5.66l80,80A8,8,0,0,1,181.66,133.66Z"/></symbol>
+  <symbol id="ic-dots-three-vertical" viewBox="0 0 256 256"><path d="M160,16H96A16,16,0,0,0,80,32V224a16,16,0,0,0,16,16h64a16,16,0,0,0,16-16V32A16,16,0,0,0,160,16ZM128,208a12,12,0,1,1,12-12A12,12,0,0,1,128,208Zm0-68a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm0-68a12,12,0,1,1,12-12A12,12,0,0,1,128,72Z"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM184,136H136v48a8,8,0,0,1-16,0V136H72a8,8,0,0,1,0-16h48V72a8,8,0,0,1,16,0v48h48a8,8,0,0,1,0,16Z"/></symbol>
+  <symbol id="ic-copy" viewBox="0 0 256 256"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32Zm-8,128H176V88a8,8,0,0,0-8-8H96V48H208Z"/></symbol>
+  <symbol id="ic-share-network" viewBox="0 0 256 256"><path d="M212,200a36,36,0,1,1-69.85-12.25l-53-34.05a36,36,0,1,1,0-51.4l53-34a36.09,36.09,0,1,1,8.67,13.45l-53,34.05a36,36,0,0,1,0,24.5l53,34.05A36,36,0,0,1,212,200Z"/></symbol>
+  <symbol id="ic-gear" viewBox="0 0 256 256"><path d="M216,130.16q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.6,107.6,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.29,107.29,0,0,0-26.25-10.86,8,8,0,0,0-7.06,1.48L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.6,107.6,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z"/></symbol>
+  <symbol id="ic-trash" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM112,168a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm0-120H96V40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8Z"/></symbol>
+  <symbol id="ic-users" viewBox="0 0 256 256"><path d="M164.47,195.63a8,8,0,0,1-6.7,12.37H10.23a8,8,0,0,1-6.7-12.37,95.83,95.83,0,0,1,47.22-37.71,60,60,0,1,1,66.5,0A95.83,95.83,0,0,1,164.47,195.63Zm87.91-.15a95.87,95.87,0,0,0-47.13-37.56A60,60,0,0,0,144.7,54.59a4,4,0,0,0-1.33,6A75.83,75.83,0,0,1,147,150.53a4,4,0,0,0,1.07,5.53,112.32,112.32,0,0,1,29.85,30.83,23.92,23.92,0,0,1,3.65,16.47,4,4,0,0,0,3.95,4.64h60.3a8,8,0,0,0,7.73-5.93A8.22,8.22,0,0,0,252.38,195.48Z"/></symbol>
+  <symbol id="ic-chat-circle" viewBox="0 0 256 256"><path d="M232,128A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Z"/></symbol>
+  <symbol id="ic-check-circle" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></symbol>
+  <symbol id="ic-x" viewBox="0 0 256 256"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM181.66,170.34a8,8,0,0,1-11.32,11.32L128,139.31,85.66,181.66a8,8,0,0,1-11.32-11.32L116.69,128,74.34,85.66A8,8,0,0,1,85.66,74.34L128,116.69l42.34-42.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></symbol>
+  <symbol id="ic-file-xls" viewBox="0 0 256 256"><path d="M44,120H212a4,4,0,0,0,4-4V88a8,8,0,0,0-2.34-5.66l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40v76A4,4,0,0,0,44,120ZM152,44l44,44H152Zm4,164.53a8.18,8.18,0,0,1-8.25,7.47H120a8,8,0,0,1-8-8V152.27a8.18,8.18,0,0,1,7.47-8.25,8,8,0,0,1,8.53,8v48h20A8,8,0,0,1,156,208.53ZM94.51,156.65,77.83,180l16.68,23.35a8,8,0,0,1-13,9.3L68,193.76,54.51,212.65a8,8,0,1,1-13-9.3L58.17,180,41.49,156.65a8,8,0,0,1,2.3-11.46,8.19,8.19,0,0,1,10.88,2.38L68,166.24l13.49-18.89a8,8,0,0,1,13,9.3Zm121.28,39.66a20.81,20.81,0,0,1-9.18,15.23C201.42,215,194.94,216,189.12,216a60.63,60.63,0,0,1-15.19-2,8,8,0,0,1,4.31-15.41c4.38,1.21,14.94,2.71,19.54-.35.89-.6,1.84-1.52,2.15-3.93.34-2.67-.72-4.1-12.78-7.59-9.35-2.7-25-7.23-23-23.12a20.58,20.58,0,0,1,8.95-14.94c11.84-8,30.72-3.31,32.83-2.76a8,8,0,0,1-4.07,15.48c-4.48-1.17-15.22-2.56-19.82.56a4.54,4.54,0,0,0-2,3.67c-.11.9-.13,1.08,1.12,1.9,2.31,1.49,6.45,2.68,10.45,3.84C201.48,174.17,218,179,215.79,196.31Z"/></symbol>
+  <symbol id="ic-image" viewBox="0 0 256 256"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM156,88a12,12,0,1,1-12,12A12,12,0,0,1,156,88Zm60,112H40V160.69l46.34-46.35a8,8,0,0,1,11.32,0h0L165,181.66a8,8,0,0,0,11.32-11.32l-17.66-17.65L173,138.34a8,8,0,0,1,11.31,0L216,170.07V200Z"/></symbol>
+  <symbol id="ic-pencil-simple" viewBox="0 0 256 256"><path d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM192,108.68,147.31,64l24-24L216,84.68Z"/></symbol>
+  <symbol id="ic-dots-six-vertical" viewBox="0 0 256 256"><path d="M192,16H64A16,16,0,0,0,48,32V224a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V32A16,16,0,0,0,192,16ZM100,200a12,12,0,1,1,12-12A12,12,0,0,1,100,200Zm0-60a12,12,0,1,1,12-12A12,12,0,0,1,100,140Zm0-60a12,12,0,1,1,12-12A12,12,0,0,1,100,80Zm56,120a12,12,0,1,1,12-12A12,12,0,0,1,156,200Zm0-60a12,12,0,1,1,12-12A12,12,0,0,1,156,140Zm0-60a12,12,0,1,1,12-12A12,12,0,0,1,156,80Z"/></symbol>
+  <symbol id="ic-warning" viewBox="0 0 256 256"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></symbol>
+  <symbol id="ic-upload-simple-o" viewBox="0 0 256 256"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0ZM93.66,77.66,120,51.31V144a8,8,0,0,0,16,0V51.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,77.66Z"/></symbol>
+  <symbol id="ic-image-o" viewBox="0 0 256 256"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V158.75l-26.07-26.06a16,16,0,0,0-22.63,0l-20,20-44-44a16,16,0,0,0-22.62,0L40,149.37V56ZM40,172l52-52,80,80H40Zm176,28H194.63l-36-36,20-20L216,181.38V200ZM144,100a12,12,0,1,1,12,12A12,12,0,0,1,144,100Z"/></symbol>
+  <symbol id="ic-file-xls-o" viewBox="0 0 256 256"><path d="M156,208a8,8,0,0,1-8,8H120a8,8,0,0,1-8-8V152a8,8,0,0,1,16,0v48h20A8,8,0,0,1,156,208ZM92.65,145.49a8,8,0,0,0-11.16,1.86L68,166.24,54.51,147.35a8,8,0,1,0-13,9.3L58.17,180,41.49,203.35a8,8,0,0,0,13,9.3L68,193.76l13.49,18.89a8,8,0,0,0,13-9.3L77.83,180l16.68-23.35A8,8,0,0,0,92.65,145.49Zm98.94,25.82c-4-1.16-8.14-2.35-10.45-3.84-1.25-.82-1.23-1-1.12-1.9a4.54,4.54,0,0,1,2-3.67c4.6-3.12,15.34-1.72,19.82-.56a8,8,0,0,0,4.07-15.48c-2.11-.55-21-5.22-32.83,2.76a20.58,20.58,0,0,0-8.95,14.95c-2,15.88,13.65,20.41,23,23.11,12.06,3.49,13.12,4.92,12.78,7.59-.31,2.41-1.26,3.33-2.15,3.93-4.6,3.06-15.16,1.55-19.54.35A8,8,0,0,0,173.93,214a60.63,60.63,0,0,0,15.19,2c5.82,0,12.3-1,17.49-4.46a20.81,20.81,0,0,0,9.18-15.23C218,179,201.48,174.17,191.59,171.31ZM40,112V40A16,16,0,0,1,56,24h96a8,8,0,0,1,5.66,2.34l56,56A8,8,0,0,1,216,88v24a8,8,0,1,1-16,0V96H152a8,8,0,0,1-8-8V40H56v72a8,8,0,0,1-16,0ZM160,80h28.68L160,51.31Z"/></symbol>
+  <symbol id="ic-plus-o" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></symbol>
+  <symbol id="ic-warning-o" viewBox="0 0 256 256"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"/></symbol>
+  <symbol id="ic-trash-o" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"/></symbol>
+  <symbol id="ic-check-circle-o" viewBox="0 0 256 256"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></symbol>
+  <symbol id="ic-users-o" viewBox="0 0 256 256"><path d="M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z"/></symbol>
+  <symbol id="ic-chat-circle-o" viewBox="0 0 256 256"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z"/></symbol>
+</svg>
+
 <div id="app">
+
+  <!-- ===== SNAPSHOT BANNER (only when opened from a share link) ===== -->
+  <div id="snap-banner" role="region" aria-label="Shared snapshot" aria-live="polite">
+    <svg class="ic" aria-hidden="true"><use href="#ic-share-network"></use></svg>
+    <div class="snap-text">
+      <div id="snapText">You were sent a snapshot of a gantt.</div>
+      <div class="snap-sub">This is a read-only copy of the sender’s gantt at the moment the link was made. Open an editable copy to keep it — your edits stay in this browser and do not reach the sender.</div>
+    </div>
+    <div class="snap-actions">
+      <button type="button" class="btn-ghost" onclick="leaveSnapshot()">Dismiss</button>
+      <button type="button" class="tg-btn" onclick="adoptSnapshot()"><svg class="ic" aria-hidden="true"><use href="#ic-copy"></use></svg> Open editable copy</button>
+    </div>
+  </div>
 
   <!-- ===== HEADER ===== -->
   <div id="header">
     <div class="header-left">
-      <div class="logo-group">
+      <div class="logo-group" id="logo-default">
         <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAWCAYAAAALmlj4AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAeKADAAQAAAABAAAAFgAAAAAu4JzCAAAPp0lEQVRoBeWae5AcxXnAu2d2Z/ZOJ3G7p8NCIJUeCBsBxg/ACiFAiA12ERtUBCzHlZQBG8gDnJcNVgiIWDguyQ6xi7JUilwJAmOMiYkNBoPLhQ0uSwqxbEgCoTCSbEknId3t3oO73Z3dmc7vm52Zm72bXSSX/Fe+qt7u/vrr7q+/Vz9mtZoNNihJ3uymjhhNi0Oqd6T4f9hwZP78k1zfP8codVmg1LWWUmNK6y3G95/TxvzshPHx8m9aLKKYGLTj2FdrZX0GRI9R5j7Pa26g7McEWXkhl3tvYOm7GaiolHm07jXXQVfNok3hWKtyC0otCBz7nUrp07XRJwpOaBDGpkaj8YKUBfL5/B/T4fxWLfkNlDYTyug90D8P/f/SUiN15Ndxcp9mnmVGmxHWdhe0aSPOUT8RGVwMP2dBdwJ14bMN6Hsk6ttsa4gqKNOtFIvn5i3rJhUElzHAfK21qhujRNguZfGeSaW2FsvlT2SNMROXy+UuyFn6ZoYo0fZYvdHYTJ7mPelSKBSWYkC3CgJepw2op0edXHDyw66TN1EKUN6FSc/swjxoX0r1MY7jrMkmTbAOCjvbzec3u45zIN2XciCJMa5MqCk4Tn5bii6kSdWF30nXyT3h5nLvhzw0knT/uMw4u1r9cgfA9cZ4chvFXknby6lx43lm5Ll90GfOcVipvkqp9PeTxeJErVQyY8WiQdltaZQ67X5lYOCK1PzdiifA06spvgyyu5EOYi+zAGP4rYQ2nzucWKgxubdifQOpHhix/nCqPqvourlVIE9PNxB6LkjXZ5RdmLueSb8PezBpFtAuYf0NrPwQ4WsvaY9lWRPpfhh9Yq3QHRAa8v3Sj1QjIXD9AWXpb2Mc66jPIWWB0AI6yls1hLKKyLWN2ttIdeZ7XebISsz7CjSIqh1wlRPcYnEzVvN3uHZfFXcjssyCPBgmeH50ZOSpdOM6ogWDSnMbsJ5FIJa1IbVaS31+Gy6qwN/0tFpPSVhqga+XpmxCwpxN/b3kfSQR5GwI9AejPrJgSRZhc/FswhDTS4i8nZJsAQJjCPLnRln/bgXBDmXbB/K5qoR2MzGh2hQcUrd+GtoPPpzvab7i+70uYfkttq3OJRatNsasgqRfK3MbnrrA8xqfpD6e6tupaNlWKLC5ENRZwDqjrYecfC2TB3tC+VhHIz3YENHAKpXuYcv56BSK7QTichh3Paf155e2DDMh/Zv+/rdXbPt8MzLyz9Al47MuGznFgwpedLYYWd7AVvE5ynFbMla6kCg40HpJNI4IeQ9pJWkZ1n1Ws9ncnu4UlXtR7iVSxmpeJ4MXc5JWeiFl1tFmwBZh+Q9hPNwbYPgwHrOxWq9vga6lhEayJlAdwfiWVa5OqBGlpoRoiG4/I9/W6+avZVO+HR4WMs/HEMCr0Rkic69MzcBea71L5ES/XVXP+7y01dp8PEU9o4h0dbm/fw2CvPbNlCunUIT7THFk5In0MMT8nqZl3VYIgivLpdLPVbn8k3R7XIa/n8LkqdjQfOR8HfitJJF9RxBFRGAkFMAu4VLpr1ESy8hZlrpM0DMBhZ0JbkWIN+ZpJt0lZQ5nC8gQ2jRg2Yssbe4EY8Fkmdj/SZT7BepH42HTA7VKKZ6TptpUvbFJGyVeOypY1vApwlvb9pFQpwo9PT1EVQOLIe8VMjkDHTUcnDt3wEY5mHfXPqxbTn9jeO9nKSdbDr3secXiVTljrsJVXcuYtf+ZEaplcKbYgYC/E020jO3uI5Rl6I4QC0sjnKUhlVGT7L2P4JUHWnV9OXkogPQotk14bjESSEhj9r2tdl1yXbd9fyg4N8HHKbR70N6FlzzUoj2+v4z7CH64kVFli+lnDaLweI2Zk/VVq2M0xGs9D94/QH1eJnEGcm4u9wcIZ0W3+CMMcHquwdSGeSnvRLl6bGDgIhS7kY0zJxGASPC+0wYH35MxlaB8otQX0WjrdKzVzeBO7kAbouPF92AHElrFHIbr9fprgc++KHWtVuIJp0k5BU7gm9+TOkI87Lr1nRgFh8gQCr7vixfH0GsCI0YCmN2M/QCFfJckkayrVdLeEdhS/hWeDoUExpfow/WtMxzhfIFRfAuKOrPOVyb4Jzzjj1xXvRXcnM49xeOVRrGXd/NdWQghwdSVenZizpzN6fHe6OtbmfP9f4BmgVikgKO10/BDvluI9l/H87yXAqPiEL8Mg1wDSUd5hXswMaqfjaokVITYITLfyunvmUBdRbnX1uZ3yV8kheA4ajm0Z0klMMHO8XFVLhTMEPQCmlPworDEDwycjNCWh3Wjj7i2vQoz7RoG63X/P6DvurfE48/Mp6amhrguPc9mgGXrk9hKTuUwxp7dGTCKzX7TYx/WF0G1HHH9ozHO9/N5QyRr7PA8tR/8rIMmDPZijSubXcKzeBBi2Ut256L9+1ueR+Vgf/8SnGI9Ifu8Wqq/iNA2Bl4yIVSknTObAl9/CIp5yPY68vtJmfIKFWx68qdoP9o3jd4LsbKs/JNB0DyIwheiuKtBifVhiAI5UbycrjFe86Bgmk3zms1GS1FbKnib4ATwpkXwjw1JRa0ytvVN6dUFNNeva/D0x7vQdG0ylvUiB0a5SxP99GLynd06iFHMmTPn482mt4ZLxmqj1bn0v5zodalR3PNd9WPlm8frzeaPGEcOoSHkS6US18L5LbuOsdN5ngFo/0VD6z/rL5fDiCit5WLxAkKY7MUXp5UrbQHCQjyLSDnaMw+I1WpzJ/fNrRD+FV1OJ8L+BZ69lvIsyYYKJrLjcVboVWzyv5SJWPQhHiJEMKvpdSaDLGOQl6kTRbg+yVDaHPbq/k8oYRAWFmTk8OBybUk8WI750h6CvKwYvTuudspRynintqPExxFPyONtqGvXyclJCeubedx5QdvWpfD9O8j6bIR8Nms9A57OQagPuW7PtvHUEyNigGQ2yKJR7hE84ou8WP0gpqj0919oaX0H9Ys7eX7mgPEArdw3Rt/HlfcjyJObi1pDpNwqW2s7GVYiCF/Zp8ZXrcA2v4jsJrCU/2CgrNUsQU7Fq0kv9+bzZ/lGnSf9jLGeIgsPKCj/MAbBKZRTtGVWgA+jE4I6BAOieEcZa5f2PDkYdIWaahzsSvAmjRjpcrwwBO7Y8dngTXqFzbVas/kM699eUGohz3JvR4HXSDRgvPeIor1a9RwobyK9USqXK7xWDbPQuWkvFuWCK+N+txysVL5VQsSMY0F7A179abSzVCxQfGQmoHwR7AF+M703pkfe/1VwnHvx97vpsATXv422T5Dahg2tGyUsjjoGQWCJJYdQ9cQ7TVi3TPA+QXIPvZish8RG6n+PLB6Q06jhzMIvVkUW0sDIrygPCZ6W5Vj0MOm1bgnC8JIbdjn2n7m8wUYGqEZQ2KvHPkR4Dd4N709annc7KyQUhmeTPhZ7RU+P8/sy5l0tPl9hH02mEOWSplDgndVK5bEzMO6hhQt7OS3fRuhbi9cuFWOIhZZ0jAqiENpfmInPqJua530N/F5pY1+8Ai+WgyHnvmkIFczWuSRCTdm2HSopqr/OS5MceIgE+h0MsFwZ/5KwzagjGMCPIzrJGnAdG0eJ+2V/1DbOKfWZqLykUHA+GJV/IxnCfz/LXRYOrrVsHzFPv8589ZpSu3ncf5DDxHoGEK/q85utW8G6cMs0T8bqDcMyCkXC69lLH1jAN4VJvijNrVY3uMbcgnJlb+2oXJq4R5pmYFlPS/koYB+7/ANCx3bCDcBcT1HsJwFRsINAFkWY4VqtllYw0cQ8GrWhsOBm2YvCujbPke+P2sKMMLYvqs/TzebCqMwQ5l7Kb5AI02q9fGyI2o5rxpeUJYGvPhvOg8ERjr5MuWuoO0oGxuv1xjcQY0s2evptmBP6w3wp2hN9JaqjnL+eqlS+VBwdHa0MDl7oB8GjtlIfR3Fv6RSWYx4KRIKm1j8aGBlJO07cnJUHePFXaPglCdWYa3m6Ff3IlhiCKJjTsJ4vNSxRFtAWHm278UNw4esQyvlYaCkgeN14gmxGpAk/AIBWFozGRqMQwovsFcIIRmYW2Vp9tacnv0rqxwvkMxnRZQsznCpjwueDPLE+e7zG7+3tLSChcNthT06uO4OTk6/jrffk8FZP61urIyP/8goCnigW/9RpNu/nDHAOHu22uVUGU6IIDKDGG4LcixMFZZDORB1Ctl8VJGsewH9vlGJMZBF2B6lzDhBsuN+28cKb7D4adkUd5LAlvIxzav5hhEsylLc3rmBNiYLBNXkX3sj436YsX03eYQL9dQ4Jd3A6XwnOjfsdRZ7mz+rtVScVCvnrTBD8Gwu8iP4242/3Go07KB+LoDpNrWUO3298BgJZv0hvZ0yMMowaHb2fr0dX18vlraa/f/DdpdIW7md3o9jFGLqdZjjuNzOXqwkK3jAwNiaR8VjA2F7zPtiQc47cU99JnsiT84F/CoeiFsLoX2WMzLzqMdIlSZtRP6179d1JPSrYttmH4lq1QC2Z0T6Mkq/jqrEBkVyPMUj7WqzlFr5Dv8YeL14Bf/JQYt9VrVZ3UJ4Jec4LW1zXkXBPxDG9vq+XYLon0hUPkyCkn7Jt7wbKWWsB3Q59jnNGQ6uN7djpGnPwMqeJDuZksLK4fbbd3DZNET6VjT5cqTx92cDAu/DYRxw+eHBZxqlbC0rTziyz/vDeiSXec7hc/hwWdMxGyVz72Ge3wpwYdThvax6TzymfA4mwDXD6zBaKZT3Oi8l6SOaEhEo9LORROckQxBH5mhCC1qclDdOFMnvZzXjtM5Yyf8kA7yaJcRURYDIeYWrzdBcmMjxYtBBcLeWfHS3S6FdkRLPexxfYTXwm3ESdE30m5CNsnKtmEJR49bo0kxpk+xxqL3vTjVUvOWsk3a4hwo573m7+rfAdxrxB9mT5F0cnEKZlz2VvrtQ4lI2Wy19ZkTwkzerFNh5CSnltNOLFW5j7ejgWQ4xhe46t+RSQYQgmmvx31pmEC/Ru3mf/Fn4+Srh5ifD3UDxCOnfdBp/v8s8ilT4sf5g20cvMVfJNwBMDeYJny/P5Dnwh5TMJ33wCa1kf4b+159PQArOHoeJtIkbK6PI+v4f0rN3wfsDVa4hGso7wP7Qg2zCcsZTwqWuCU1jHawk88fSrhzGe55DPw/VmHV5mrUmGUnMnJiQKfYpPft/Fgv4crVxEiOxDicnRVjQl1ypOr3Jd/C4HwXv7x8ZeLHbwXGRR1SZ4HiHygilyyAa8eMjV/p/w1nA3ghnEK17mJHSrKECsQsKwAOMcF5BxBY51vG79pO1YxwuZmPGTNU4WTrp1ws8YMrs6Nji4Img0fpvHi9uhWB5RbUdpX6hpvWNweFgM8mjhaHmR6CTPyBUZ+P8ACOMjZ9UGz4MAAAAASUVORK5CYII=" id="logo-medison" class="logo-img" alt="Medison">
         <div class="logo-divider"></div>
         <img src="data:image/svg+xml;base64,PHN2ZyBjbGFzcz0ibm8tZmxpcCIgd2lkdGg9IjIyOCIgaGVpZ2h0PSIzNCIgdmlld0JveD0iMCAwIDIyOCAzNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+PGcgY2xpcC1wYXRoPSJ1cmwoI2NsaXAwXzMzNjVfMjYzMjgpIiBmaWxsPSJub25lIj48cGF0aCBkPSJNMTQ0LjY3NSAzLjg0ODg2QzE0NC4yNzEgMy4wNzkwOCAxNDMuNzA3IDIuNDA0MjcgMTQzLjAxOCAxLjg0NDQzQzEzOS4xNSAwLjAzMjQ0NDQgMTM0LjAwOCAyLjgzNDE1IDEzMS4xNiA2LjA2MzIzQzEzMi41NiA0LjU3MTE2IDEzNC4zODcgMy4zNjkgMTM2LjQ0MyAzLjA2OTA4QzEzNi43NjQgMy4wMjE2IDEzNy4wOTYgMi45OTkxIDEzNy40MjggMi45OTkxQzEzOC4wMDcgMi45OTkxIDEzOC41OTcgMy4wNjkwOCAxMzkuMTUzIDMuMjE2NTRDMTQwLjMzNiAzLjUyODk1IDE0MS4zNzkgNC4xNzg3NyAxNDEuOTIyIDUuMjA4NDhDMTQzLjczOCA4LjY2NzUgMTM5LjQxIDEwLjkyOTQgMTM3LjU1NCAxMy43MDg2QzEzNy4xOTIgMTQuMjUzNCAxMzYuOTIxIDE0LjgxODMgMTM2LjgxMyAxNS40MTU2QzEzNi42MjggMTYuNDMwMyAxMzYuODA4IDE3LjQ1NzUgMTM3LjA1MyAxOC40NzQ3QzEzNy4zMzggMTkuNjcxOSAxMzcuNzA5IDIwLjg1NCAxMzcuNjczIDIxLjk5MzdWMjIuMDQzN0MxMzcuNjU1IDI0LjYwNTUgMTM2LjI0NSAyOS4yMTY3IDEzMi40OSAyOS4yMTY3QzEzNC44MzIgMjkuMjE2NyAxMzcuMTQgMjguMzE5NCAxMzguNjY2IDI2LjgwOTlDMTQxLjU3NyAyMy45MzU3IDE0MC43NzkgMjAuNjYxNiAxNDAuMjI4IDE4LjQ3NDdDMTQwLjIyMyAxOC40NTcyIDE0MC4yMjEgMTguNDM5NyAxNDAuMjE1IDE4LjQyNDdDMTM5Ljk3MyAxNy40NjI1IDEzOS43NDIgMTYuNTUyOCAxMzkuODU1IDE1LjkzNzlDMTM5Ljk1IDE1LjQwODEgMTQwLjc5NCAxNC41MDMzIDE0MS41NjQgMTMuNzExMUMxNDEuNjQ5IDEzLjYyMzYgMTQxLjczNCAxMy41Mzg2IDE0MS44MTkgMTMuNDUxMUMxNDIuODE3IDEyLjQyODkgMTQzLjk1MiAxMS4yNjY4IDE0NC42NzggOS44Njk2NkMxNDUuNzA0IDcuODg3NzIgMTQ1LjcwNCA1LjgwNTgxIDE0NC42NzggMy44NDg4NkgxNDQuNjc1WiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNMTA1LjI5MiAzLjIxOTAyQzEwNS44NDggMy4wNzE1NiAxMDYuNDM3IDMuMDAxNTggMTA3LjAxNiAzLjAwMTU4QzEwNy4zNDggMy4wMDE1OCAxMDcuNjggMy4wMjQwNyAxMDguMDAyIDMuMDcxNTZDMTEwLjA1OCAzLjM2ODk3IDExMS44ODUgNC41NzM2MyAxMTMuMjg1IDYuMDY1NzFDMTEwLjQzOSAyLjgzNDEyIDEwNS4yOTQgMC4wMzI0MTg2IDEwMS40MjkgMS44NDQ0QzEwMC43NDIgMi40MDQyNSAxMDAuMTc2IDMuMDc5MDUgOTkuNzcxOSAzLjg0ODg0Qzk4Ljc0MjUgNS44MDU3OCA5OC43NDI1IDcuODg3NjkgOTkuNzcxOSA5Ljg2OTYzQzEwMC40OTggMTEuMjY5MiAxMDEuNjMyIDEyLjQyODkgMTAyLjYzMSAxMy40NTExQzEwMi43MTYgMTMuNTM2MSAxMDIuNzk4IDEzLjYyMzYgMTAyLjg4NiAxMy43MTFDMTAzLjY1NSAxNC41MDMzIDEwNC40OTkgMTUuNDA4MSAxMDQuNTk0IDE1LjkzNzlDMTA0LjcwNSAxNi41NTI3IDEwNC40NzYgMTcuNDYyNSAxMDQuMjM0IDE4LjQyNDdDMTA0LjIyOSAxOC40NDIyIDEwNC4yMjYgMTguNDU5NyAxMDQuMjIxIDE4LjQ3NDdDMTAzLjY3MSAyMC42NTkxIDEwMi44NzMgMjMuOTMzMSAxMDUuNzgzIDI2LjgwOThDMTA3LjMwOSAyOC4zMTk0IDEwOS42MTggMjkuMjE2NiAxMTEuOTU5IDI5LjIxNjZDMTA4LjIwNSAyOS4yMTY2IDEwNi43OTUgMjQuNjA1NSAxMDYuNzc3IDIyLjA0MzdWMjEuOTkzN0MxMDYuNzM4IDIwLjg1NjUgMTA3LjEwOSAxOS42NzQ0IDEwNy4zOTcgMTguNDc0N0MxMDcuNjM5IDE3LjQ1NzUgMTA3LjgxOSAxNi40MzAzIDEwNy42MzYgMTUuNDE1NkMxMDcuNTI4IDE0LjgxODIgMTA3LjI1OCAxNC4yNTM0IDEwNi44OTUgMTMuNzA4NUMxMDUuMDQgMTAuOTI5MyAxMDAuNzExIDguNjY3NDcgMTAyLjUyOCA1LjIwODQ1QzEwMy4wNzEgNC4xNzg3NCAxMDQuMTEzIDMuNTI4OTMgMTA1LjI5NyAzLjIxNjUyTDEwNS4yOTIgMy4yMTkwMloiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTEzMS4xNiA2LjA2MzI4QzEzNC4wMDggMi44MzQyIDEzOS4xNTIgMC4wMzI0OTA4IDE0My4wMTggMS44NDQ0OEMxNDEuNTgyIDAuNjcyMzA5IDEzOS42MDggMCAxMzcuNDI4IDBDMTM2Ljk0MiAwIDEzNi40NTggMC4wMzQ5OTAxIDEzNS45ODcgMC4xMDI0NzFDMTMzLjQwNCAwLjQ3NzM2NSAxMzAuOTQzIDEuODM5NDggMTI4Ljg3NyA0LjA0Mzg1QzEyNy4yMyA1Ljc5NTg2IDEyNi4wNTcgNy44MzI3OCAxMjUuMDE3IDkuNjI3MjdMMTIyLjIyMiAxNC40NjM0TDEyMy4xMTUgMTYuMDA1NUwxMjMuOTY0IDE3LjQ3MjVDMTIzLjk2NCAxNy40NzI1IDEyNi41MDIgMTMuMTkxMyAxMjcuNzE0IDExLjA5NDRDMTI4LjczIDkuMzMyMzUgMTI5Ljc2MiA3LjU1Nzg2IDEzMS4xNjIgNi4wNjMyOEgxMzEuMTZaIiBmaWxsPSJibGFjayI+PC9wYXRoPjxwYXRoIGQ9Ik0xMjEuMzMyIDE4Ljk0MTlMMTIwLjQ4NSAxNy40NzQ5QzEyMC40ODUgMTcuNDc0OSAxMTYuNzEgMjQuNDIyOSAxMTQuMTUyIDI1LjcyNUMxMTMuNDg4IDI2LjA2NDkgMTEyLjcyNiAyNi4yMTc0IDExMS45NTcgMjYuMjE3NEMxMTEuMDc3IDI2LjIxNzQgMTEwLjE4NiAyNi4wMTc0IDEwOS40MDkgMjUuNjY1QzEwOC44NjEgMjUuNDE3NiAxMDguMzcgMjUuMDkyNyAxMDcuOTgxIDI0LjcxMDNDMTA3LjEyNCAyMy44NjU1IDEwNi44MTMgMjIuOTcwOCAxMDYuNzc0IDIyLjA0NjFDMTA2Ljc5MiAyNC42MDc4IDEwOC4yMDIgMjkuMjE5IDExMS45NTcgMjkuMjE5QzExMy4yNTkgMjkuMjE5IDExNC41MTUgMjguOTI5MSAxMTUuNTg4IDI4LjM4NDNDMTE4LjYxMiAyNi44NDIyIDExOS40MyAyNS40MDI2IDEyMS44NTkgMjEuMTM4OEMxMjEuOTc1IDIwLjkzNjQgMTIyLjA5OSAyMC43MjE0IDEyMi4yMjIgMjAuNTAxNVYyMC40OTY1QzEyMS45NDkgMjAuMDE5MSAxMjEuNjU2IDE5LjUwNDMgMTIxLjMzMiAxOC45NDQ0VjE4Ljk0MTlaIiBmaWxsPSJibGFjayI+PC9wYXRoPjxwYXRoIGQ9Ik0xMzYuNDY2IDI0LjcwOEMxMzYuMDc3IDI1LjA5MDQgMTM1LjU4OCAyNS40MTUzIDEzNS4wMzggMjUuNjYyN0MxMzQuMjYgMjYuMDE1MSAxMzMuMzcgMjYuMjE1MSAxMzIuNDkgMjYuMjE1MUMxMzEuNzIxIDI2LjIxNTEgMTMwLjk1OSAyNi4wNjI2IDEzMC4yOTUgMjUuNzIyN0MxMjcuNzQgMjQuNDIwNiAxMjMuOTYyIDE3LjQ3MjUgMTIzLjk2MiAxNy40NzI1TDEyMy4xMTMgMTYuMDA1NUwxMjIuMjIgMTQuNDYzNEwxMjIuMjEyIDE0LjQ3NTlDMTIyLjIxMiAxNC40NzA5IDEyMi4yMTcgMTQuNDY4NCAxMjIuMjE3IDE0LjQ2MzRMMTE5LjQyMiA5LjYyNzI3QzExOC4zODMgNy44MzI3OCAxMTcuMjA3IDUuNzk1ODYgMTE1LjU2MiA0LjA0Mzg1QzExMy41MDEgMS44Mzk0OCAxMTEuMDQxIDAuNDc3MzY1IDEwOC40NTcgMC4xMDI0NzFDMTA3Ljk4NiAwLjAzNDk5MDEgMTA3LjUwMiAwIDEwNy4wMTYgMEMxMDQuODM5IDAgMTAyLjg2NSAwLjY3MjMwOSAxMDEuNDI5IDEuODQ0NDhDMTA1LjI5NCAwLjAzMjQ5MDggMTEwLjQzOSAyLjgzNDIgMTEzLjI4NyA2LjA2MzI4QzExNC42ODcgNy41NTc4NiAxMTUuNzE5IDkuMzMyMzUgMTE2LjczNiAxMS4wOTQ0QzExNy45NDggMTMuMTkxMyAxMjAuNDg1IDE3LjQ3MjUgMTIwLjQ4NSAxNy40NzI1QzEyMC40OSAxNy40NjUxIDEyMC40OTUgMTcuNDU1MSAxMjAuNTAxIDE3LjQ0NzZMMTIwLjQ4NSAxNy40NzI1TDEyMS4zMzIgMTguOTM5NkMxMjEuNjU2IDE5LjQ5OTUgMTIxLjk0OSAyMC4wMTQzIDEyMi4yMjIgMjAuNDkxN0MxMjIuMjIyIDIwLjQ5MTcgMTIyLjIyMiAyMC40OTQyIDEyMi4yMjUgMjAuNDk2N0MxMjIuMzUxIDIwLjcxOTEgMTIyLjQ3NCAyMC45MzE2IDEyMi41ODggMjEuMTM2NUMxMjUuMDE3IDI1LjQwMDMgMTI1LjgzNSAyNi44Mzc0IDEyOC44NTkgMjguMzgyQzEyOS45MzIgMjguOTI5MyAxMzEuMTg4IDI5LjIxNjcgMTMyLjQ5IDI5LjIxNjdDMTM2LjI0NSAyOS4yMTY3IDEzNy42NTUgMjQuNjA1NSAxMzcuNjczIDIyLjA0MzhDMTM3LjYzNCAyMi45Njg1IDEzNy4zMjMgMjMuODY1NyAxMzYuNDY2IDI0LjcwOFoiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTE1MS4wMzEgMi42MjY3N0MxNTEuMDMxIDEuNzU3MDIgMTUxLjQ3OSAxLjMyMjE0IDE1Mi4zNzQgMS4zMjIxNEgxNTMuNjc5QzE1NC41NzUgMS4zMjIxNCAxNTUuMDIyIDEuNzU3MDIgMTU1LjAyMiAyLjYyNjc3VjI1Ljg1NTJIMTY2LjU5NUMxNjcuNDUyIDI1Ljg1NTIgMTY3LjkzOCAyNi4yOTAxIDE2Ny45MzggMjcuMTU5OFYyNy45NTIxQzE2Ny45MzggMjguODIxOCAxNjcuNDQ5IDI5LjI1NjcgMTY2LjU5NSAyOS4yNTY3SDE1Mi4zNzRDMTUxLjQ3OSAyOS4yNTY3IDE1MS4wMzEgMjguODIxOCAxNTEuMDMxIDI3Ljk1MjFWMi42MjY3N1oiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTE3MC45OTYgMTAuNTQxOUMxNzAuOTk2IDkuNjcyMTMgMTcxLjQ4NCA5LjIzNzI1IDE3Mi4zMzkgOS4yMzcyNUgxNzMuNDc5QzE3NC4zNzQgOS4yMzcyNSAxNzQuODIyIDkuNjcyMTMgMTc0LjgyMiAxMC41NDE5VjEyLjMyMTRDMTc0LjgyMiAxMi45MTM3IDE3NC42OTkgMTMuNDY4NiAxNzQuNjk5IDEzLjQ2ODZIMTc0Ljc4MUMxNzUuNTk3IDExLjcyNjUgMTc4LjA4IDguNzU5ODkgMTgyLjYwNCA4Ljc1OTg5QzE4Ny40NTIgOC43NTk4OSAxODkuNjUzIDExLjMzMTcgMTg5LjY1MyAxNi40Mzc3VjI3Ljk1MTlDMTg5LjY1MyAyOC44MjE3IDE4OS4yMDUgMjkuMjU2NiAxODguMzA5IDI5LjI1NjZIMTg3LjA0NkMxODYuMTg5IDI5LjI1NjYgMTg1LjcwMiAyOC44MjE3IDE4NS43MDIgMjcuOTUxOVYxNy4zMDc1QzE4NS43MDIgMTQuNDk4MyAxODUuMTMxIDEyLjI4MTQgMTgxLjgzMiAxMi4yODE0QzE3Ny44MzggMTIuMjgxNCAxNzQuOTQ2IDE1LjUyNTUgMTc0Ljk0NiAxOS42ODE4VjI3Ljk1MTlDMTc0Ljk0NiAyOC44MjE3IDE3NC40OTggMjkuMjU2NiAxNzMuNjAyIDI5LjI1NjZIMTcyLjMzOUMxNzEuNDgyIDI5LjI1NjYgMTcwLjk5NiAyOC44MjE3IDE3MC45OTYgMjcuOTUxOVYxMC41NDE5WiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNMjA0LjA3OSA4Ljc1OTk1QzIwOS43ODQgOC43NTk5NSAyMTIuOTYyIDEyLjcxNjMgMjEyLjk2MiAxOC4yOTcyQzIxMi45NjIgMTkuMDA5NSAyMTIuMzkxIDE5LjY0MTkgMjExLjU3OCAxOS42NDE5SDE5Ny44MDhDMTk4LjA1MiAyMy45OTU2IDIwMS4yNzEgMjYuNDA3NCAyMDQuOTM4IDI2LjQwNzRDMjA3LjE4IDI2LjQwNzQgMjA4LjkzMiAyNS40OTc3IDIwOS44NjkgMjQuODI1NEMyMTAuNjQ0IDI0LjQzMDUgMjExLjI1NCAyNC41MDggMjExLjcwNCAyNS4yNjAzTDIxMi4wNzIgMjUuODUyNkMyMTIuNDc5IDI2LjUyNDkgMjEyLjM1OCAyNy4xOTcyIDIxMS42NjUgMjcuNTk0NkMyMTAuNDQzIDI4LjQyNDQgMjA3Ljk5OCAyOS43MzE1IDIwNC42OTcgMjkuNzMxNUMxOTguMjE5IDI5LjczMTUgMTkzLjc3OCAyNS4xODAzIDE5My43NzggMTkuMjQ0NUMxOTMuNzc4IDEyLjg3MzggMTk4LjIxOSA4Ljc1NzQ1IDIwNC4wODcgOC43NTc0NUwyMDQuMDc5IDguNzU5OTVaTTIwOS4wMSAxNy4xMTAxQzIwOC44ODYgMTMuNTg4NiAyMDYuNzI3IDExLjc2OTEgMjAzLjk5OSAxMS43NjkxQzIwMC45ODMgMTEuNzY5MSAxOTguNTM4IDEzLjc0ODUgMTk3Ljk3IDE3LjExMDFIMjA5LjAxMkgyMDkuMDFaIiBmaWxsPSJibGFjayI+PC9wYXRoPjxwYXRoIGQ9Ik0yMTguMTM3IDEyLjU1ODlIMjE2LjcxMkMyMTUuODU3IDEyLjU1ODkgMjE1LjQwNyAxMi4wODQxIDIxNS40MDcgMTEuMjU0M1YxMC43Mzk1QzIxNS40MDcgOS45MDk3IDIxNS44NTUgOS40MzQ4NCAyMTYuNzUgOS40MzQ4NEgyMTguMjE3VjUuMDQxMDhDMjE4LjIxNyA0LjE3MTMzIDIxOC43MDYgMy43MzY0NSAyMTkuNTYgMy43MzY0NUgyMjAuNzQyQzIyMS42MzcgMy43MzY0NSAyMjIuMDg1IDQuMTcxMzMgMjIyLjA4NSA1LjA0MTA4VjkuNDMyMzRIMjI1LjY3QzIyNi41NjUgOS40MzIzNCAyMjcuMDEzIDkuOTA3MiAyMjcuMDEzIDEwLjczN1YxMS4yNTE4QzIyNy4wMTMgMTIuMDg0MSAyMjYuNTY1IDEyLjU1NjUgMjI1LjcwOCAxMi41NTY1SDIyMi4wODJWMjEuNDU4OUMyMjIuMDgyIDI1LjI1NzkgMjI0LjQ4NiAyNS44NTAyIDIyNS45OTQgMjUuOTcwMkMyMjcuMDU0IDI2LjA1MDEgMjI3LjQxOSAyNi4zNjUgMjI3LjQxOSAyNy4yNzQ4VjI4LjEwN0MyMjcuNDE5IDI5LjAxNjggMjI2Ljg4OSAyOS40MTE3IDIyNS43OTEgMjkuNDExN0MyMjEuNzE3IDI5LjQxMTcgMjE4LjEzIDI3LjExNzMgMjE4LjEzIDIyLjA1MTNWMTIuNTU4OUgyMTguMTM3WiIgZmlsbD0iYmxhY2siPjwvcGF0aD48L2c+PG1hc2sgaWQ9Im1hc2swXzMzNjVfMjYzMjgiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHg9IjAiIHk9IjEiIHdpZHRoPSI4MSIgaGVpZ2h0PSIzMyIgc3R5bGU9Im1hc2stdHlwZTogbHVtaW5hbmNlOyIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTgxIDFIMFYzNEg4MVYxWiIgZmlsbD0iI0ZGRkZGRiI+PC9wYXRoPjwvbWFzaz48ZyBtYXNrPSJ1cmwoI21hc2swXzMzNjVfMjYzMjgpIiBmaWxsPSJub25lIj48cGF0aCBvcGFjaXR5PSIwLjI1IiBkPSJNMTIuNDUwOCAzMy45OTk5QzE5LjMxMjQgMzMuOTk5OSAyNC44NzQ4IDMyLjk1ODMgMjQuODc0OCAzMS42NzM1QzI0Ljg3NDggMzAuMzg4NyAxOS4zMTI0IDI5LjM0NzIgMTIuNDUwOCAyOS4zNDcyQzUuNTg5MjYgMjkuMzQ3MiAwLjAyNjg1NTUgMzAuMzg4NyAwLjAyNjg1NTUgMzEuNjczNUMwLjAyNjg1NTUgMzIuOTU4MyA1LjU4OTI2IDMzLjk5OTkgMTIuNDUwOCAzMy45OTk5WiIgZmlsbD0idXJsKCZxdW90OyNwYWludDBfcmFkaWFsXzMzNjVfMjYzMjgmcXVvdDspIj48L3BhdGg+PHBhdGggZD0iTTI2LjYxNTkgMTYuNzQ3OUMyNi42MTE4IDE2LjgzNjEgMjYuNDkyMyAxNi44NTIgMjYuNDY2MSAxNi43NjgxQzI1Ljk3NzUgMTUuMjE5MyAyNC45ODg5IDEzLjk3MzUgMjQuMDg2NSAxMy4wOTI1QzIzLjA5NDQgMTIuMTI0IDIxLjYwODMgMTEuOTI2OSAyMC40MDgxIDEyLjYwMjFMMTYuODE5NCAxNC42MjEyQzE2LjE4OTMgMTQuOTc1NiAxNS40MTUzIDE0LjkwNzEgMTQuODUzIDE0LjQ0NzlMMTIuMDM1MyAxMi4xNDQ4QzEyLjAzNTMgMTIuMTQ0OCAxMS4xNDM2IDExLjI4NzcgMTAuMjI3IDEyLjQ2NDRDOS44NTAwOSAxMi45NDggOS45NDYzOSAxMy42NTg4IDEwLjQyNzkgMTQuMDMxNkMxMy4wNzY4IDE2LjA4MzEgMTUuODIxOSAxOC44Njc0IDE3LjEwOTUgMjAuMjE5MUMxNy4zNjA0IDIwLjQ4MyAxNy4xNDY0IDIwLjkyNDQgMTYuNzkwOSAyMC44NzZMMTQuNTk5MSAyMC41NzczQzE0LjU0MDkgMjAuNTY5MyAxNC40ODI2IDIwLjU2NTYgMTQuNDI0NCAyMC41NjU2QzE0LjAwNDcgMjAuNTY1NiAxMy42MDQ2IDIwLjc3MDEgMTMuMzUyIDIxLjEyMzlDMTIuODc0MSAyMS43OTM3IDEzLjIwMDQgMjIuODIxNiAxMy45OTkzIDIyLjk0MDNDMTYuNjYwMSAyMy4zMzUyIDIwLjA4NDEgMjQuOTkzNyAyMi43OTQyIDI1LjU0ODlDMjMuMDQ1NyAyNS42MDAzIDIzLjA4NjEgMjUuOTU0OCAyMi44NTEzIDI2LjA2MTNDMjIuNTAxNyAyNi4yMTk5IDIyLjE0MDMgMjYuMzI5NSAyMS43NzQ3IDI2LjM3NzhDMTkuMjM1OCAyNi43MzY2IDE2LjY5NjQgMjYuOTMzMSAxNC4xNTY5IDI2Ljk2NzRDMTMuMTI5MSAyNi45ODE1IDEyLjEzMzQgMjcuMzQyMSAxMS4zMTc4IDI3Ljk4NDlMNi42ODEwOCAzMS42MzcyQzYuMzE1NSAzMS45MjU2IDUuNzk0MTcgMzEuNjA5NyA1Ljg2MjUzIDMxLjE0MTRMNi4zNzkxIDI3LjU5MjRDNi40NTg3NiAyNy4wNDMzIDYuMDgzNjYgMjYuNTM0IDUuNTQ3NDcgMjYuNDY0MkM1LjMzNTI1IDI2LjQzNiA1LjEyMzYzIDI2LjQwNzIgNC45MTE0MSAyNi4zNzc4QzIuODQ4MDggMjYuMDU0NiAwLjgyNjM1OCAyMy44NjU0IDAuNTQzOTk1IDIxLjc1MDhDLTAuMTgxMjMzIDE2LjU3MSAtMC4xODEyMzMgMTEuNDAzNCAwLjU0MzQwMSA2LjIyMzAxQzAuODI1NzY0IDQuMTA3ODYgMi44NDc0OCAxLjkxOTI1IDQuOTEwODIgMS41OTZDMTAuNTMxMyAwLjgwMTk4MyAxNi4xNTQyIDAuODAxOTgzIDIxLjc3NDEgMS41OTZDMjMuODY3OCAxLjg3NDU2IDI1LjgyMTEgNC4xNDM5OCAyNi4xNDE2IDYuMjIzMDFDMjYuNjMyNiA5LjczNDU5IDI2Ljc5MDcgMTMuMjQgMjYuNjE1OSAxNi43NDc5WiIgZmlsbD0iYmxhY2siPjwvcGF0aD48L2c+PHBhdGggZD0iTTM4LjYzNzMgMTAuOTU2NUg0My4wMDg0VjExLjY3MDlDNDMuMDA4NCAxNS4yNTE2IDQyLjcwMzcgMTcuNjY5NyA0Mi4wOTQ5IDE4LjkyMzZDNDEuNDkzOCAyMC4yMTAyIDQwLjM2OCAyMC44NTMxIDM4LjcxODMgMjAuODUzMUMzNy4wNjg3IDIwLjg1MzEgMzUuODAwMSAyMC4xMzg3IDM1LjA3NTUgMTguNzA5MkMzNC4zNTg4IDE3LjI4MDMgMzQgMTQuODc4MSAzNCAxMS41MDRDMzQgNy42NDUyIDM0LjM5MzQgNS4wNzY4OCAzNS4xNzk4IDMuNzk4MjlDMzUuOTE5NyAyLjU5OTE2IDM3LjA1NzEgMiAzOC41OTEgMkMzOS43NjMxIDIgNDAuNjc1OSAyLjI5MDA0IDQxLjMzMTggMi44NjkzNEM0MS45OTQ1IDMuNDU2NTkgNDIuNTExNiA0LjQyMTMgNDIuODgxMiA1Ljc2MzQ2TDQwLjYzODEgNi43MjgxN0M0MC41Mzc4IDYuMjQ0MjIgNDAuNDI1OSA1LjgzNzM3IDQwLjMwMjQgNS41MDc1OEM0MC4xNzkgNS4xNzg2IDQwLjA0NCA0LjkyMTkyIDM5Ljg5NzMgNC43MzkxNkMzOS42MDQxIDQuMzY2NDcgMzkuMTY1MSA0LjE3OTcyIDM4LjU3ODcgNC4xNzk3MkMzNy43NzcgNC4xNzk3MiAzNy4yMjkxIDQuNjg4MyAzNi45MzY3IDUuNzAzODdDMzYuNjQzNCA2Ljc2NzkgMzYuNDk2OSA4LjY3NzQ1IDM2LjQ5NjkgMTEuNDMyNUMzNi40OTY5IDE0LjE4NzUgMzYuNjQ3MyAxNi4xMDUxIDM2Ljk0NzQgMTcuMDg5NkMzNy4yNDg0IDE4LjA3NDIgMzcuODE0OCAxOC41NjYxIDM4LjY0NzMgMTguNTY2MUMzOS40MTA0IDE4LjU2NjEgMzkuOTQ2IDE4LjIxNzIgNDAuMjU0NyAxNy41MThDNDAuNTcwMiAxNi43NzE4IDQwLjcyODMgMTUuNTcyNiA0MC43MjgzIDEzLjkyMTRWMTMuMDUySDM4LjYzNVYxMC45NTU3TDM4LjYzNzMgMTAuOTU2NVoiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTQ4LjE3NzMgMi4yMzgyOEg1MC4wNTA4TDUzLjg3ODggMjAuNjI2NUg1MS40OTY4TDUwLjgyNjIgMTcuMDQxOEg0Ny4yODc2TDQ2LjYwNTUgMjAuNjI2NUg0NC4yOTNMNDguMTc4OSAyLjIzODI4SDQ4LjE3NzNaTTUwLjQ3ODIgMTUuMTI0NEw0OS45NDY3IDEyLjE5NDVDNDkuNTkxNiAxMC4yMDE1IDQ5LjMwMzEgOC4wNzQyIDQ5LjA3OTMgNS44MTEwM0M0OC45NzEzIDYuOTE0OCA0OC44MzI0IDguMDMyMDkgNDguNjYyNiA5LjE2MzY3QzQ4LjQ5MjkgMTAuMjk1MiA0OC4yOTIzIDExLjQ5NiA0OC4wNjE1IDEyLjc2NThMNDcuNjIxOCAxNS4xMjM1TDUwLjQ3ODIgMTUuMTI0NFoiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTU2LjA5MjggMjAuODUzVjIuMjMxOTNINTkuODU5QzYwLjc2OTQgMi4yMzE5MyA2MS41NTE5IDIuMzM5MiA2Mi4xODUzIDIuNTUxMzhDNjIuNzk5NSAyLjc2NTE0IDYzLjg4MDUgMy4xNDU3OCA2NC4zNTQzIDMuNjg0NTZDNjUuMDQ0MiA0LjQ2ODA4IDY1LjU0MTEgNS40OTcxNSA2NS44MzEyIDYuNzQxNThDNjYuMTEzNyA3LjkxMzY4IDY2LjI1NzEgOS42MDc4OCA2Ni4yNTcxIDExLjc3NDlDNjYuMjU3MSAxMy43NjU1IDY2LjA5ODIgMTUuNDE3NiA2NS43ODQ5IDE2LjY4NUM2NS40Njc4IDE3Ljk0MjkgNjQuOTMxNiAxOC45MjAzIDY0LjE5IDE5LjU5MTlDNjMuMjY4NyAyMC40Mzk4IDYxLjE2OTkgMjAuODUzIDU4Ljg2ODIgMjAuODUzSDU2LjA5MjhaTTU5LjY3MyAxOC4wMDQyQzYwLjc3MDIgMTcuOTM5OCA2MS40ODkzIDE3LjU2NzEgNjEuODY2NyAxNi44Njk1QzYyLjMzMDQgMTYuMDM3NCA2Mi41NjQyIDE0LjM1NTIgNjIuNTY0MiAxMS44NjcxQzYyLjU2NDIgOS4xNzYzOSA2Mi4zMzczIDcuMzE0NTEgNjEuODg5MSA2LjMzMzEzQzYxLjQ4NCA1LjQ0NjI5IDYwLjc1ODcgNS4wMDY4NiA1OS42NzMgNC45OTA5NVYxOC4wMDQyWiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNNzQuNTAyOCAyMC44NTNMNzMuODUgMTcuMzY1M0g3MC40NjA0TDY5Ljc5NjggMjAuODUzSDY2LjgxNDVMNzAuNzQ5NyAyLjIzMTkzSDczLjY3NTdMNzcuNTUyMiAyMC44NTNINzQuNTAyOFpNNzIuMjEyNyA5LjA2OTlMNzAuOTI0MSAxNC43NjkxSDczLjM3ODZMNzIuMjEyNyA5LjA2OTlaIiBmaWxsPSJibGFjayI+PC9wYXRoPjxwYXRoIGQ9Ik0zNy4xODU2IDI1LjU4MTVWMjkuOTEzMkgzNi40OTU5VjI2LjE0ODlIMzUuMDA5OFYyNS41ODE1SDM3LjE4NTZaTTM1LjAwOTggMjcuMjM4NUgzNS42OTI3VjI5LjkxMzJIMzUuMDA5OFYyNy4yMzg1WiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNMzguNzgyOSAyNi4xNDg5SDM3LjYzODdWMjUuNTgxNUgzOS45MjcyVjI2LjE0ODlIMzkuNDk1OVYyOS45MTMySDM4Ljc4MjlWMjYuMTQ4OVoiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTQxLjE2NTQgMjUuNTgxNVYyNy44NjMxSDQwLjQ0MjRWMjUuNTgxNUg0MS4xNjU0WiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNNDMuMDU2NCAyOS4zNTNINDMuNjMwNVYyNi45Mjc3QzQzLjYzMDUgMjYuNDQzIDQzLjQ5NDggMjYuMTAxMyA0My4wNTY0IDI2LjEwMTNINDIuODg3NEw0Mi40NCAyOS45MTMySDQxLjgxNjRMNDIuMzA3MiAyNi4xNDg5SDQxLjg0NjVWMjUuNTgxNUg0My4wNTAzQzQzLjk4MjQgMjUuNTgxNSA0NC4yODEgMjYuMDE4NiA0NC4yNzQxIDI3LjQyOTlWMjkuOTEzMkg0My4wNTY0VjI5LjM1M1oiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTQ1Ljg0MzEgMjkuOTEzNUg0NS4xNzY0TDQ1Ljk1ODggMjYuMTQ5Mkg0NC43NDUxVjI0LjY5NDFINDUuMzc4NlYyNS41ODI2SDQ2Ljc2ODJMNDUuODQzMSAyOS45MTM1WiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNNTEuNDk4MSAyNy40NTM4VjI5LjkxMzJINTAuODM0NFYyNy4yNDU2QzUwLjgzNDQgMjYuNjAzNSA1MC44NjA3IDI2LjA5MSA1MC4yNzQzIDI2LjA5MUg0OS45MzI0VjI5LjkxMzJINDguNzE0OFYyOS4zNDU4SDQ5LjMzNTJWMjYuMTQ4OUg0OS4wNjM2VjI1LjU4MTVINTAuMjU3M0M1MS40MTE2IDI1LjU4MTUgNTEuNDk4MSAyNi4zNTMyIDUxLjQ5ODEgMjcuNDUzOFoiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTUyLjY5MTcgMjUuNTgxNVYyNy44NjMxSDUxLjk2ODhWMjUuNTgxNUg1Mi42OTE3WiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNNTMuOTE1NCAyNS41ODE1VjI3Ljg2MzFINTMuMTkyNFYyNS41ODE1SDUzLjkxNTRaIiBmaWxsPSJibGFjayI+PC9wYXRoPjxwYXRoIGQ9Ik01Ni40MjQ2IDI1LjU4MTVWMjkuOTEzMkg1NS43MTc4VjI1LjU4MTVINTYuNDI0NloiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTU1LjE4OTMgMjUuNTgxNVYyOS45MTMySDU0LjQ4MjRWMjUuNTgxNUg1NS4xODkzWiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNNTkuMzcxNiAyNy40NTM4VjI5LjkxMzJINTguNjkxOVYyNy4yNjIyQzU4LjY5MTkgMjYuNjE3IDU4LjY5MTkgMjYuMTQ4OSA1OC4wOTg0IDI2LjE0ODlINTcuNjY3MVYyOS45MTMySDU2Ljk4NzNWMjUuNTgxNUg1OC4xNDE2QzU5LjI4MjkgMjUuNTgxNSA1OS4zNzE2IDI2LjM1MzIgNTkuMzcxNiAyNy40NTM4WiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNNjMuOTExIDI5LjkxMzJINjEuNzE4OFYyNS41ODE1SDYyLjgzNjlDNjMuNTc2OSAyNS41ODE1IDYzLjkxMTggMjUuNzY2IDYzLjkxMTggMjYuODUyMkw2My45MTEgMjkuOTEzMlpNNjMuMjc0MyAyNi44Njk3QzYzLjI3NDMgMjYuMjc1MyA2My4xMDU0IDI2LjE0MTggNjIuNzYzNSAyNi4xNDE4SDYyLjM1NTRWMjkuMzUzSDYzLjI3NDNWMjYuODY5N1oiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTY1LjIxNDIgMjUuNTgxNVYyNy44NjMxSDY0LjQ5MTJWMjUuNTgxNUg2NS4yMTQyWiIgZmlsbD0iYmxhY2siPjwvcGF0aD48cGF0aCBkPSJNNjguMDgwMSAyOS45MTMySDY1Ljg0NDdWMjkuMzQ1OEg2Ni45MzU3VjI2LjE0ODlINjUuODY0N1YyNS41ODE1SDY3LjYzMjVWMjkuMzQ1OEg2OC4wODAxVjI5LjkxMzJaIiBmaWxsPSJibGFjayI+PC9wYXRoPjxwYXRoIGQ9Ik02OC41MzA3IDI5LjM1M0g2OS45NTM2TDY4LjM0NDcgMjUuNTgxNUg2OS4wMjQ1TDY5LjkwMzQgMjcuNjQ4NUM3MC4wNjYyIDI3LjU5NzYgNzAuMjQxNCAyNy40ODA4IDcwLjI0MTQgMjcuMDI3VjI1LjU4MjNINzAuODc4VjI2LjgxMTdDNzAuODc4IDI3LjQ0MDMgNzAuNjQ4OSAyNy45OTczIDcwLjA3MTYgMjguMDcyMUw3MC45MDExIDI5LjkxMzJINjguNTNMNjguNTMwNyAyOS4zNTNaIiBmaWxsPSJibGFjayI+PC9wYXRoPjxwYXRoIGQ9Ik03My44MDg1IDI1LjU4MTVWMjcuNzQ3QzczLjgwODUgMjguOTQyMSA3My43NjgzIDI5LjM0NTggNzIuNDA1OCAyOS43Njk0QzcyLjAzMDYgMjkuODg4NyA3MS40NTM1IDMwLjAzOTYgNzEuNDUzNSAzMC4wMzk2TDcxLjMzNCAyOS41Mzc0TDcxLjk0MTIgMjkuMzUzTDcxLjU2NjIgMjUuNTgxNUg3Mi4yMjU5TDcyLjU0MDggMjkuMTYxNUM3My4xMzQxIDI5LjAxMTMgNzMuMTc0MiAyOC43NTg2IDczLjE3NDIgMjguMDE0VjI1LjU4MTVINzMuODA4NVoiIGZpbGw9ImJsYWNrIj48L3BhdGg+PHBhdGggZD0iTTc1LjQ4NjEgMjkuMzUzSDc2LjA2MDJWMjYuOTI3N0M3Ni4wNjAyIDI2LjQ0MyA3NS45MjQ0IDI2LjEwMTMgNzUuNDg2MSAyNi4xMDEzSDc1LjMxNzFMNzQuODY5NSAyOS45MTMySDc0LjI0NjFMNzQuNzM2OSAyNi4xNDg5SDc0LjI3NjJWMjUuNTgxNUg3NS40Nzk5Qzc2LjQxMiAyNS41ODE1IDc2LjcxMDcgMjYuMDE4NiA3Ni43MDM2IDI3LjQyOTlWMjkuOTEzMkg3NS40ODYxVjI5LjM1M1oiIGZpbGw9ImJsYWNrIj48L3BhdGg+PGRlZnM+PHJhZGlhbEdyYWRpZW50IGlkPSJwYWludDBfcmFkaWFsXzMzNjVfMjYzMjgiIGN4PSIwIiBjeT0iMCIgcj0iMSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIGdyYWRpZW50VHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTIuNDc3NSAzMS42NzM0KSBzY2FsZSgxMi40NjkyIDIuMzI2MzYpIj48c3RvcD48L3N0b3A+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLW9wYWNpdHk9IjAiPjwvc3RvcD48L3JhZGlhbEdyYWRpZW50PjxjbGlwUGF0aCBpZD0iY2xpcDBfMzM2NV8yNjMyOCI+PHJlY3Qgd2lkdGg9IjEyOC40MjciIGhlaWdodD0iMjkuNzM0MSIgZmlsbD0id2hpdGUiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDk5KSI+PC9yZWN0PjwvY2xpcFBhdGg+PHJhZGlhbEdyYWRpZW50IGlkPSJwYWludDBfcmFkaWFsXzMzNjVfMjYzMjgiIGN4PSIwIiBjeT0iMCIgcj0iMSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIGdyYWRpZW50VHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTIuNDc3NSAzMS42NzM0KSBzY2FsZSgxMi40NjkyIDIuMzI2MzYpIj48c3RvcD48L3N0b3A+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLW9wYWNpdHk9IjAiPjwvc3RvcD48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48L3N2Zz4=" id="logo-gada" class="logo-img gada" alt="GA-DA · Lnet">
       </div>
+      <img id="logo-custom" class="logo-img" alt="" style="display:none">
       <div class="logo-divider"></div>
-      <div>
-        <div class="project-title">Medison &mdash; Gantt Chart</div>
-        <div class="project-subtitle">Discovery &amp; Interactive Map</div>
+      <div class="title-block">
+        <div class="project-title" id="hdrTitle">Medison &mdash; Gantt Chart</div>
+        <div class="project-subtitle" id="hdrSubtitle">Discovery &amp; Interactive Map</div>
+      </div>
+      <div class="logo-divider"></div>
+      <div class="switch-wrap">
+        <button class="gantt-switch" id="switchBtn" onclick="toggleSwitcher(event)" aria-haspopup="menu" aria-expanded="false" aria-controls="ganttList" title="Switch gantt">
+          <span class="gs-name" id="switchName"></span><svg class="ic" aria-hidden="true"><use href="#ic-caret-down"></use></svg>
+        </button>
+        <div class="app-menu gantt-list" id="ganttList" role="menu" aria-labelledby="switchBtn" onkeydown="switcherKey(event)"></div>
       </div>
     </div>
     <div class="header-right"></div>
@@ -752,43 +1112,46 @@
   <div id="stats-row">
 
     <div class="stats-group">
-      <div class="stat-chip">
+      <div class="stat-chip" data-status="total">
         <div class="stat-dot" style="background:#3e88f7"></div>
         <div><div class="stat-count" id="s-total">0</div><div class="stat-label">Total</div></div>
       </div>
-      <div class="stat-chip">
+      <div class="stat-chip" data-status="In progress">
         <div class="stat-dot" style="background:#f5a623"></div>
         <div><div class="stat-count" id="s-progress" style="color:#f5a623">0</div><div class="stat-label">In Progress</div></div>
       </div>
-      <div class="stat-chip">
+      <div class="stat-chip" data-status="Not started">
         <div class="stat-dot" style="background:#8c8c9e"></div>
         <div><div class="stat-count" id="s-notstarted" style="color:#8c8c9e">0</div><div class="stat-label">Not Started</div></div>
       </div>
-      <div class="stat-chip">
+      <div class="stat-chip" data-status="Completed">
         <div class="stat-dot" style="background:#33c77a"></div>
         <div><div class="stat-count" id="s-done" style="color:#33c77a">0</div><div class="stat-label">Completed</div></div>
       </div>
     </div>
 
     <div class="controls-group">
-      <input type="text" id="searchInput" class="tg-input" placeholder="🔍  Search tasks..." oninput="renderGantt()" style="width:150px;">
-      <select id="phaseFilter" class="tg-select" onchange="renderGantt()">
+      <div class="search-wrap">
+        <svg class="ic" aria-hidden="true"><use href="#ic-magnifying-glass"></use></svg>
+        <input type="text" id="searchInput" class="tg-input" placeholder="Search tasks..." aria-label="Search tasks" oninput="renderGantt()" style="width:160px;">
+      </div>
+      <select id="phaseFilter" class="tg-select" onchange="renderGantt()" aria-label="Filter by phase">
         <option value="ALL">All Phases</option>
       </select>
-      <select id="responsibleFilter" class="tg-select" onchange="renderGantt()" title="Filter by owner">
+      <select id="responsibleFilter" class="tg-select" onchange="renderGantt()" aria-label="Filter by owner" title="Filter by owner">
         <option value="ALL">All Owners</option>
       </select>
-      <div class="zoom-group">
+      <div class="zoom-group" role="group" aria-label="Zoom">
         <button class="zoom-btn" id="zDays" onclick="setZoom('days')">Days</button>
         <button class="zoom-btn active" id="zWeeks" onclick="setZoom('weeks')">Weeks</button>
         <button class="zoom-btn" id="zMonths" onclick="setZoom('months')">Months</button>
       </div>
 
       <div class="view-wrap">
-        <button class="tg-select" id="viewBtn" onclick="toggleViewMenu(event)" style="display:flex;align-items:center;gap:6px;">
-          <span>👁 View</span><span style="font-size:9px;">▼</span>
+        <button class="tg-select" id="viewBtn" onclick="toggleViewMenu(event)" aria-haspopup="true" aria-expanded="false" aria-controls="viewMenu" style="display:flex;align-items:center;gap:6px;">
+          <svg class="ic" aria-hidden="true"><use href="#ic-eye"></use></svg><span>View</span><svg class="ic ic-caret" aria-hidden="true"><use href="#ic-caret-down"></use></svg>
         </button>
-        <div class="view-menu" id="viewMenu">
+        <div class="view-menu" id="viewMenu" aria-label="View options">
           <div class="vm-title">Show / hide</div>
           <label class="vm-item">Weekends (Fri–Sat)
             <span class="vm-switch"><input type="checkbox" id="vwWeekends" onchange="setView('showWeekends', this.checked)"><span class="vm-slider"></span></span>
@@ -805,12 +1168,37 @@
         </div>
       </div>
 
-      <button class="tg-btn" onclick="openModal()">
-        <span style="font-size:16px;line-height:1">+</span> New Task
+      <button class="tg-btn" id="newTaskBtn" onclick="openModal()">
+        <svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg> New Task
       </button>
-      <button class="icon-btn" onclick="exportPDF()" title="Print / Export PDF (full chart)">🖨</button>
-      <button class="icon-btn" onclick="resetData()" title="Reset to original data">↺</button>
-      <button class="icon-btn" onclick="exportCSV()" title="Export CSV">⬇</button>
+
+      <div class="menu-wrap">
+        <button class="icon-btn" id="menuBtn" onclick="toggleAppMenu(event)" aria-label="More actions" title="More actions" aria-haspopup="menu" aria-expanded="false" aria-controls="appMenu">
+          <svg class="ic" aria-hidden="true"><use href="#ic-dots-three-vertical"></use></svg>
+        </button>
+        <div class="app-menu" id="appMenu" role="menu" aria-labelledby="menuBtn" onkeydown="appMenuKey(event)">
+          <div class="am-group" role="group" aria-label="This gantt">
+            <div class="am-title">This gantt</div>
+            <button class="am-item" role="menuitem" tabindex="-1" data-action="rename"><svg class="ic" aria-hidden="true"><use href="#ic-pencil-simple"></use></svg>Rename gantt…</button>
+            <button class="am-item" role="menuitem" tabindex="-1" data-action="duplicate"><svg class="ic" aria-hidden="true"><use href="#ic-copy"></use></svg>Duplicate this gantt</button>
+            <button class="am-item" role="menuitem" tabindex="-1" data-action="share"><svg class="ic" aria-hidden="true"><use href="#ic-share-network"></use></svg>Share snapshot…</button>
+            <button class="am-item" role="menuitem" tabindex="-1" data-action="settings"><svg class="ic" aria-hidden="true"><use href="#ic-gear"></use></svg>Settings…</button>
+          </div>
+          <div class="am-group" role="group" aria-label="Import / Export">
+            <div class="am-title">Import / Export</div>
+            <button class="am-item" role="menuitem" tabindex="-1" data-action="template"><svg class="ic" aria-hidden="true"><use href="#ic-file-xls"></use></svg>Download Excel template</button>
+            <button class="am-item" role="menuitem" tabindex="-1" data-action="import"><svg class="ic" aria-hidden="true"><use href="#ic-upload-simple"></use></svg>Import from template…</button>
+            <button class="am-item" role="menuitem" tabindex="-1" data-action="csv"><svg class="ic" aria-hidden="true"><use href="#ic-download-simple"></use></svg>Export CSV</button>
+            <button class="am-item" role="menuitem" tabindex="-1" data-action="pdf"><svg class="ic" aria-hidden="true"><use href="#ic-printer"></use></svg>Print / PDF</button>
+          </div>
+          <div class="am-group" role="group" aria-label="Manage">
+            <div class="am-title">Manage</div>
+            <button class="am-item" role="menuitem" tabindex="-1" data-action="create"><svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Create new gantt…</button>
+            <button class="am-item danger" role="menuitem" tabindex="-1" data-action="reset"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-counter-clockwise"></use></svg>Reset this gantt to original…</button>
+            <button class="am-item danger" role="menuitem" tabindex="-1" data-action="delete" id="miDelete"><svg class="ic" aria-hidden="true"><use href="#ic-trash"></use></svg>Delete this gantt…<span class="am-soon" id="miDeleteHint" style="display:none">Only gantt</span></button>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -826,11 +1214,11 @@
 
 <div id="meta-tip"></div>
 <canvas id="confetti-canvas"></canvas>
-<div id="celebrate-toast"></div>
+<div id="celebrate-toast" role="status" aria-live="polite"></div>
 
 <!-- ===== SQUIRCLE MODAL ===== -->
 <div id="modal-overlay">
-  <div id="modal-box">
+  <div id="modal-box" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <div class="modal-header">
       <div class="modal-title-block">
         <div class="modal-color-stripe" id="mColorStripe"></div>
@@ -839,7 +1227,7 @@
           <div class="modal-subtitle">Click fields to edit task details</div>
         </div>
       </div>
-      <button class="modal-close-btn" onclick="closeModal()">×</button>
+      <button type="button" class="modal-close-btn" onclick="closeModal()" aria-label="Close" title="Close"><svg class="ic" aria-hidden="true" style="width:14px;height:14px"><use href="#ic-x"></use></svg></button>
     </div>
 
     <form onsubmit="saveTask(event)">
@@ -852,14 +1240,15 @@
         </div>
 
         <div class="grid-2">
-          <div>
-            <label class="field-label">Phase</label>
+          <div id="fPhaseWrap">
+            <label class="field-label" for="fPhase">Phase</label>
             <input type="text" id="fPhase" class="field-input" required list="phaseList" placeholder="e.g. 1. Discovery">
             <datalist id="phaseList"></datalist>
           </div>
           <div>
             <label class="field-label">Responsible</label>
-            <input type="text" id="fResponsible" class="field-input" placeholder="Name">
+            <input type="text" id="fResponsible" class="field-input" placeholder="Name" list="ownerList">
+            <datalist id="ownerList"></datalist>
           </div>
         </div>
 
@@ -903,13 +1292,55 @@
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="delete-btn" id="mDeleteBtn" onclick="deleteCurrentTask()">🗑 Delete Task</button>
+        <button type="button" class="delete-btn" id="mDeleteBtn" onclick="deleteCurrentTask()"><svg class="ic" aria-hidden="true"><use href="#ic-trash"></use></svg> Delete Task</button>
         <div class="footer-actions">
           <button type="button" class="cancel-btn" onclick="closeModal()">Cancel</button>
           <button type="submit" class="save-btn">Save Changes</button>
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ===== GENERIC DIALOG (wizard, rename, settings) ===== -->
+<div id="dialog-overlay">
+  <div id="dialog-box" role="dialog" aria-modal="true" aria-labelledby="dTitle" aria-describedby="dDesc">
+    <div class="modal-header">
+      <div class="modal-title-block">
+        <div>
+          <div class="modal-title" id="dTitle"></div>
+          <div class="modal-subtitle" id="dDesc"></div>
+        </div>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="dialogEscape()" aria-label="Close" title="Close"><svg class="ic" aria-hidden="true" style="width:14px;height:14px"><use href="#ic-x"></use></svg></button>
+    </div>
+    <div id="dSteps"></div>
+    <div class="modal-body" id="dBody"></div>
+    <div class="modal-footer" id="dFooter"></div>
+  </div>
+</div>
+
+<!-- ===== CONFIRM DIALOG (destructive actions) ===== -->
+<div id="confirm-overlay">
+  <div id="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="cTitle" aria-describedby="cDesc">
+    <div class="modal-header">
+      <div class="modal-title-block">
+        <div class="confirm-icon"><svg class="ic" aria-hidden="true"><use href="#ic-warning"></use></svg></div>
+        <div>
+          <div class="modal-title" id="cTitle"></div>
+          <div class="modal-subtitle" id="cDesc"></div>
+        </div>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="closeConfirm(false)" aria-label="Close" title="Close"><svg class="ic" aria-hidden="true" style="width:14px;height:14px"><use href="#ic-x"></use></svg></button>
+    </div>
+    <div class="modal-body" id="cBody"></div>
+    <div class="modal-footer">
+      <span></span>
+      <div class="footer-actions">
+        <button type="button" class="cancel-btn" id="cCancel" onclick="closeConfirm(false)">Cancel</button>
+        <button type="button" class="danger-btn" id="cOk" onclick="closeConfirm(true)">Confirm</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -952,7 +1383,7 @@ const INITIAL_TASKS = [
   { id:20, phase:"4. Map Build, Testing & Integration", task:"4.6 Final Production Approval & Sign-off",     status:"Not started", start:"2026-12-14", end:"2026-12-16", responsible:"Medison",        notes:"Client Approval: Formal client sign-off for live deployment.",                        color:PALETTE[6] },
 ];
 
-let tasks = JSON.parse(localStorage.getItem('gf_tasks_v3') || 'null') || JSON.parse(JSON.stringify(INITIAL_TASKS));
+let tasks = [];        // bound to the active gantt by bindActive()
 let dayWidth = 26;
 let zoom = 'weeks';
 
@@ -960,11 +1391,194 @@ const WD = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
 // ====== VIEW SETTINGS (persisted) ======
 const DEFAULT_VIEW = { showWeekends:true, showDayNames:false, showResponsible:true, weekendSkip:true };
-let view = Object.assign({}, DEFAULT_VIEW, JSON.parse(localStorage.getItem('gf_view_v1') || 'null') || {});
+let view = {};         // bound to the active gantt by bindActive()
 
-function saveView() { localStorage.setItem('gf_view_v1', JSON.stringify(view)); }
+// ====== MULTI-GANTT STORE (localStorage['gs_v1']) ======
+const STORE_KEY = 'gs_v1';
+const LEGACY_NAME = 'Medison — Discovery & Interactive Map';
+let store = null;
+
+function uniq(arr) { return [...new Set(arr.map(x => String(x || '').trim()).filter(Boolean))]; }
+function newId() { return 'g_' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4); }
+function deep(x) { return JSON.parse(JSON.stringify(x)); }
+
+function makeGantt(o) {
+  const now = new Date().toISOString();
+  const t = deep(o.tasks || []);
+  return {
+    id: o.id || newId(),
+    name: o.name || 'Untitled gantt',
+    title: o.title || o.name || 'Untitled gantt',
+    subtitle: o.subtitle || '',
+    logo: o.logo || null,                    // null = default Medison / GA-DA lockup
+    createdAt: now, updatedAt: now,
+    settings: {
+      usePhases: o.usePhases !== false,
+      phases: o.phases || uniq(t.map(x => x.phase)),
+      owners: o.owners || uniq(t.map(x => x.responsible)),
+      view: Object.assign({}, DEFAULT_VIEW, o.view || {})
+    },
+    baseline: deep(o.baseline || t),         // what "Reset this gantt" restores
+    tasks: t
+  };
+}
+
+function readJSON(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) { return null; } }
+
+const SNAP_ID = 'snapshot';
+function isReadOnly() { return store && store.activeId === SNAP_ID; }
+function persistStore() {
+  try {
+    const out = { version: store.version, activeId: store.activeId === SNAP_ID ? (store.lastActiveId || Object.keys(store.gantts).find(k => k !== SNAP_ID)) : store.activeId, gantts: {} };
+    for (const [k, v] of Object.entries(store.gantts)) if (k !== SNAP_ID) out.gantts[k] = v;
+    localStorage.setItem(STORE_KEY, JSON.stringify(out)); return true;
+  }
+  catch (e) {
+    showToast('Could not save — browser storage is full. Export CSV to keep a copy, then delete an unused gantt.');
+    return false;
+  }
+}
+
+// First run: build gs_v1 from the legacy single-gantt keys. gf_tasks_v3 / gf_view_v1 are NOT removed (kept as a backup).
+function migrateLegacy() {
+  const legacyTasks = readJSON('gf_tasks_v3');
+  const legacyView  = readJSON('gf_view_v1');
+  const t = Array.isArray(legacyTasks) && legacyTasks.length ? legacyTasks : deep(INITIAL_TASKS);
+  const g = makeGantt({
+    name: LEGACY_NAME, title: 'Medison — Gantt Chart', subtitle: 'Discovery & Interactive Map',
+    tasks: t, view: legacyView || {}, baseline: INITIAL_TASKS
+  });
+  return { version: 1, activeId: g.id, gantts: { [g.id]: g } };
+}
+
+function loadStore() {
+  const s = readJSON(STORE_KEY);
+  if (s && s.version === 1 && s.gantts && Object.keys(s.gantts).length) {
+    if (!s.gantts[s.activeId]) s.activeId = Object.keys(s.gantts)[0];
+    for (const g of Object.values(s.gantts)) {           // defensive defaults for older records
+      g.settings = g.settings || {}; g.settings.view = Object.assign({}, DEFAULT_VIEW, g.settings.view || {});
+      g.settings.phases = g.settings.phases || uniq((g.tasks||[]).map(x => x.phase));
+      g.settings.owners = g.settings.owners || uniq((g.tasks||[]).map(x => x.responsible));
+      g.tasks = g.tasks || []; g.baseline = g.baseline || deep(g.tasks);
+    }
+    return s;
+  }
+  const fresh = migrateLegacy();
+  store = fresh; persistStore();
+  return fresh;
+}
+
+function G() { return store.gantts[store.activeId]; }
+function ganttList() { return Object.values(store.gantts).filter(g => g.id !== SNAP_ID).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')); }
+function bindActive() { const g = G(); tasks = g.tasks; view = g.settings.view; }
+function touch() { G().updatedAt = new Date().toISOString(); }
+
+function saveView() { G().settings.view = view; persistStore(); }
+
+// ---- header (title / subtitle / logo / switcher) ----
+function applyHeader() {
+  const g = G();
+  document.getElementById('hdrTitle').textContent = g.title || g.name;
+  document.getElementById('hdrSubtitle').textContent = g.subtitle || '';
+  document.getElementById('hdrSubtitle').style.display = g.subtitle ? '' : 'none';
+  document.getElementById('switchName').textContent = (g.id === SNAP_ID ? 'Snapshot · ' : '') + g.name;
+  document.getElementById('switchBtn').title = 'Switch gantt — current: ' + g.name;
+  const custom = document.getElementById('logo-custom'), def = document.getElementById('logo-default');
+  if (g.logo) { custom.src = g.logo; custom.style.display = ''; def.style.display = 'none'; }
+  else { custom.removeAttribute('src'); custom.style.display = 'none'; def.style.display = ''; }
+  document.title = (g.title || g.name) + ' — Gantt';
+}
+
+// ---- switching ----
+function switchGantt(id, opts) {
+  if (!store.gantts[id]) return;
+  if (store.activeId === SNAP_ID && id !== SNAP_ID) { delete store.gantts[SNAP_ID]; clearShareHash(); }
+  store.activeId = id;
+  document.body.classList.toggle('readonly', id === SNAP_ID);
+  document.getElementById('snap-banner').classList.toggle('show', id === SNAP_ID);
+  document.getElementById('newTaskBtn').style.display = id === SNAP_ID ? 'none' : '';
+  persistStore();
+  bindActive();
+  document.getElementById('searchInput').value = '';
+  document.getElementById('phaseFilter').value = 'ALL';
+  document.getElementById('responsibleFilter').value = 'ALL';
+  applyHeader();
+  syncViewMenu();
+  populateFilters();
+  updateStats();
+  renderGantt();
+  if (!(opts && opts.silent)) showToast('Now editing “' + G().name + '”');
+}
+
+function fmtUpdated(iso) {
+  const d = new Date(iso); if (isNaN(d)) return '';
+  const today = new Date(); const same = d.toDateString() === today.toDateString();
+  return same ? 'today ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+              : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+}
+
+function renderSwitcher() {
+  const list = document.getElementById('ganttList');
+  const rows = ganttList().map(g => {
+    const n = g.tasks.length;
+    return `<button class="am-item${g.id === store.activeId ? ' active' : ''}" role="menuitemradio" aria-checked="${g.id === store.activeId}" tabindex="-1" data-gid="${g.id}">
+      <svg class="ic gl-check" aria-hidden="true"><use href="#ic-check-circle"></use></svg>
+      <span class="gl-main"><span class="gl-name">${escH(g.name)}</span>
+      <span class="gl-meta">${n} task${n === 1 ? '' : 's'} · updated ${escH(fmtUpdated(g.updatedAt))}</span></span>
+    </button>`;
+  }).join('');
+  list.innerHTML = `<div class="am-group" role="group" aria-label="Your gantts"><div class="am-title">Your gantts</div>${rows}</div>
+    <div class="am-group"><button class="am-item" role="menuitem" tabindex="-1" data-action="create">
+      <svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Create new gantt…</button></div>`;
+}
+function toggleSwitcher(e) {
+  if (e) e.stopPropagation();
+  const m = document.getElementById('ganttList');
+  if (m.classList.contains('open')) closeSwitcher(true); else openSwitcher();
+}
+function openSwitcher() {
+  closeAppMenu(false); closeViewMenu(false);
+  renderSwitcher();
+  const m = document.getElementById('ganttList');
+  m.classList.add('open');
+  document.getElementById('switchBtn').setAttribute('aria-expanded', 'true');
+  const cur = m.querySelector('.am-item.active') || menuItems(m)[0];
+  if (cur) cur.focus();
+}
+function closeSwitcher(returnFocus) {
+  const m = document.getElementById('ganttList');
+  if (!m.classList.contains('open')) return;
+  m.classList.remove('open');
+  document.getElementById('switchBtn').setAttribute('aria-expanded', 'false');
+  if (returnFocus) document.getElementById('switchBtn').focus();
+  else if (m.contains(document.activeElement)) document.activeElement.blur();
+}
+function switcherKey(e) { menuKeyNav(e, document.getElementById('ganttList'), () => closeSwitcher(true), () => closeSwitcher(false)); }
+document.getElementById('ganttList').addEventListener('click', function(e) {
+  const btn = e.target.closest('.am-item');
+  if (!btn) return;
+  e.stopPropagation();
+  if (btn.getAttribute('aria-disabled') === 'true') return;
+  closeSwitcher(true);
+  if (btn.dataset.action === 'create') { openWizard(); return; }
+  if (btn.dataset.gid && btn.dataset.gid !== store.activeId) switchGantt(btn.dataset.gid);
+});
+function closeAllMenus() { closeAppMenu(false); closeViewMenu(false); closeSwitcher(false); }
 function setView(key, val) { view[key] = val; saveView(); renderGantt(); }
-function toggleViewMenu(e) { if (e) e.stopPropagation(); document.getElementById('viewMenu').classList.toggle('open'); }
+function toggleViewMenu(e) {
+  if (e) e.stopPropagation();
+  const open = document.getElementById('viewMenu').classList.toggle('open');
+  document.getElementById('viewBtn').setAttribute('aria-expanded', String(open));
+  if (open) { closeAppMenu(false); closeSwitcher(false); }
+}
+function closeViewMenu(returnFocus) {
+  const m = document.getElementById('viewMenu');
+  if (!m.classList.contains('open')) return;
+  m.classList.remove('open');
+  document.getElementById('viewBtn').setAttribute('aria-expanded', 'false');
+  if (returnFocus) document.getElementById('viewBtn').focus();
+  else if (m.contains(document.activeElement)) document.activeElement.blur();
+}
 function syncViewMenu() {
   document.getElementById('vwWeekends').checked    = view.showWeekends;
   document.getElementById('vwDayNames').checked    = view.showDayNames;
@@ -973,21 +1587,1030 @@ function syncViewMenu() {
 }
 document.addEventListener('click', function(e){
   const w = document.querySelector('.view-wrap');
-  if (w && !w.contains(e.target)) document.getElementById('viewMenu').classList.remove('open');
+  if (w && !w.contains(e.target)) closeViewMenu(false);
+  const mw = document.querySelector('.menu-wrap');
+  if (mw && !mw.contains(e.target)) closeAppMenu(false);
+  const sw = document.querySelector('.switch-wrap');
+  if (sw && !sw.contains(e.target)) closeSwitcher(false);
+});
+
+// ===== MAIN MENU (⋮) =====
+function menuItems(menuEl) {
+  return [...menuEl.querySelectorAll('.am-item')].filter(b => b.getAttribute('aria-disabled') !== 'true');
+}
+function appMenuItems() { return menuItems(document.getElementById('appMenu')); }
+// shared roving-focus keyboard handling for every popover menu
+function menuKeyNav(e, menuEl, closeWithFocus, closeQuiet) {
+  const items = menuItems(menuEl);
+  const i = items.indexOf(document.activeElement);
+  const go = n => { e.preventDefault(); items[(n + items.length) % items.length].focus(); };
+  switch (e.key) {
+    case 'ArrowDown': go(i + 1); break;
+    case 'ArrowUp':   go(i - 1); break;
+    case 'Home':      go(0); break;
+    case 'End':       go(items.length - 1); break;
+    case 'Enter': case ' ':
+      e.preventDefault();
+      if (i >= 0) items[i].click();
+      break;
+    case 'Tab': closeQuiet(); break;   // let focus move on naturally
+    case 'Escape': e.preventDefault(); e.stopPropagation(); closeWithFocus(); break;
+  }
+}
+function toggleAppMenu(e) {
+  if (e) e.stopPropagation();
+  const m = document.getElementById('appMenu');
+  if (m.classList.contains('open')) closeAppMenu(true); else openAppMenu();
+}
+function openAppMenu() {
+  closeViewMenu(false); closeSwitcher(false);
+  const m = document.getElementById('appMenu');
+  const only = ganttList().length <= 1, ro = isReadOnly();   // the last gantt can't be deleted; snapshots can't be edited
+  const del = document.getElementById('miDelete');
+  del.setAttribute('aria-disabled', String(only || ro)); del.title = ro ? 'Read-only snapshot' : only ? 'You can’t delete your only gantt' : '';
+  document.getElementById('miDeleteHint').style.display = only && !ro ? '' : 'none';
+  ['rename', 'duplicate', 'settings', 'import', 'reset'].forEach(a => { const b = m.querySelector('[data-action="' + a + '"]'); b.setAttribute('aria-disabled', String(ro)); b.title = ro ? 'Read-only snapshot — open an editable copy first' : ''; });
+  m.classList.add('open');
+  document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
+  const items = appMenuItems();
+  if (items.length) items[0].focus();
+}
+function closeAppMenu(returnFocus) {
+  const m = document.getElementById('appMenu');
+  if (!m.classList.contains('open')) return;
+  m.classList.remove('open');
+  document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
+  if (returnFocus) document.getElementById('menuBtn').focus();
+  else if (m.contains(document.activeElement)) document.activeElement.blur();   // never leave focus inside a hidden menu
+}
+function appMenuKey(e) { menuKeyNav(e, document.getElementById('appMenu'), () => closeAppMenu(true), () => closeAppMenu(false)); }
+document.getElementById('appMenu').addEventListener('click', function(e) {
+  const btn = e.target.closest('.am-item');
+  if (!btn) return;
+  e.stopPropagation();
+  if (btn.getAttribute('aria-disabled') === 'true') return;
+  closeAppMenu(true);
+  menuAction(btn.dataset.action);
+});
+function menuAction(name) {
+  switch (name) {
+    case 'csv':   exportCSV(); showToast('CSV downloaded'); break;
+    case 'pdf':   exportPDF(); break;
+    case 'reset': resetData(); break;
+    case 'rename':    openRenameDialog(); break;
+    case 'duplicate': duplicateGantt(); break;
+    case 'create':    openWizard(); break;
+    case 'delete':    deleteGanttFlow(); break;
+    case 'settings':  openSettingsDialog(); break;
+    case 'template':  downloadTemplate(); break;
+    case 'import':    openImportDialog(); break;
+    case 'share':     openShareDialog(); break;
+    // share / settings / template / import → later stages (A4–A7)
+  }
+}
+
+// ===== CONFIRM DIALOG (shared by every destructive action) =====
+let confirmState = null;   // { onConfirm, opener }
+function confirmDialog(opts) {
+  // opts: { title, desc, items:[html…], confirmLabel, cancelLabel, onConfirm }
+  const ov = document.getElementById('confirm-overlay');
+  closeAllMenus();
+  document.getElementById('cTitle').textContent = opts.title || 'Are you sure?';
+  document.getElementById('cDesc').textContent  = opts.desc || '';
+  const body = document.getElementById('cBody');
+  body.innerHTML = (opts.html || '') + (opts.items && opts.items.length ? '<ul>' + opts.items.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '');
+  document.getElementById('cOk').textContent     = opts.confirmLabel || 'Confirm';
+  document.getElementById('cCancel').textContent = opts.cancelLabel || 'Cancel';
+  confirmState = { onConfirm: opts.onConfirm, opener: document.activeElement };
+  ov.classList.add('open');
+  document.getElementById('cCancel').focus();   // safe default for a destructive dialog
+}
+function closeConfirm(ok) {
+  const ov = document.getElementById('confirm-overlay');
+  if (!ov.classList.contains('open')) return;
+  ov.classList.remove('open');
+  const st = confirmState; confirmState = null;
+  if (st && st.opener && document.body.contains(st.opener) && st.opener !== document.body) { try { st.opener.focus(); } catch (_) {} }
+  if (ok && st && typeof st.onConfirm === 'function') st.onConfirm();
+}
+document.getElementById('confirm-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeConfirm(false);
+});
+
+// ===== GENERIC DIALOG (wizard, rename, later: settings / import) =====
+let dialogState = null;   // { onEscape, opener }
+function openDialog(o) {
+  closeAllMenus();
+  const ov = document.getElementById('dialog-overlay');
+  document.getElementById('dTitle').textContent = o.title || '';
+  document.getElementById('dDesc').textContent = o.desc || '';
+  document.getElementById('dSteps').innerHTML = o.steps || '';
+  document.getElementById('dBody').innerHTML = o.body || '';
+  document.getElementById('dFooter').innerHTML = o.footer || '';
+  document.getElementById('dialog-box').style.maxWidth = (o.maxWidth || 560) + 'px';
+  dialogState = { onEscape: o.onEscape || null, opener: document.activeElement };
+  ov.classList.add('open');
+  const first = o.focus ? document.getElementById(o.focus) : document.getElementById('dBody').querySelector(FOCUSABLE);
+  setTimeout(() => { if (first) first.focus(); }, 30);
+}
+function closeDialog() {
+  const ov = document.getElementById('dialog-overlay');
+  if (!ov.classList.contains('open')) return;
+  ov.classList.remove('open');
+  const st = dialogState; dialogState = null;
+  if (st && st.opener && document.body.contains(st.opener) && st.opener !== document.body) { try { st.opener.focus(); } catch (_) {} }
+}
+function dialogEscape() { if (dialogState && dialogState.onEscape) dialogState.onEscape(); else closeDialog(); }
+document.getElementById('dialog-overlay').addEventListener('click', function(e) { if (e.target === this) dialogEscape(); });
+
+// ===== LIST EDITOR (Owners & Phases) — used by the wizard and, later, Settings =====
+// renderListEditor(el, { items, title, sub, placeholder, onChange, canDelete(item) -> true | false })
+function renderListEditor(el, cfg) {
+  const items = cfg.items;
+  function commit() { if (cfg.onChange) cfg.onChange(items); draw(); }
+  function draw() {
+    el.innerHTML = '';
+    const list = document.createElement('div'); list.className = 'le-list';
+    if (!items.length) { const e = document.createElement('div'); e.className = 'le-empty'; e.textContent = cfg.emptyText || 'Nothing here yet — add one below.'; list.appendChild(e); }
+    items.forEach((val, i) => {
+      const row = document.createElement('div'); row.className = 'le-row'; row.draggable = true; row.dataset.i = i;
+      row.innerHTML = '<span class="le-handle" title="Drag to reorder" aria-hidden="true"><svg class="ic"><use href="#ic-dots-six-vertical"></use></svg></span>';
+      const txt = document.createElement('button'); txt.type = 'button'; txt.className = 'le-text'; txt.textContent = val; txt.title = 'Click to rename';
+      txt.setAttribute('aria-label', 'Rename ' + val);
+      txt.onclick = () => edit(i, row, txt);
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'le-del'; del.setAttribute('aria-label', 'Remove ' + val); del.title = 'Remove';
+      del.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#ic-x"></use></svg>';
+      del.onclick = () => {
+        const proceed = () => { const j = items.indexOf(val); if (j >= 0) items.splice(j, 1); commit(); };
+        if (cfg.canDelete && cfg.canDelete(val, i, proceed) === false) return;   // false = the hook handles it (async dialog)
+        proceed();
+      };
+      row.appendChild(txt); row.appendChild(del);
+      // drag & drop reorder
+      row.addEventListener('dragstart', e => { row.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(i)); } catch (_) {} el._dragFrom = i; });
+      row.addEventListener('dragover', e => { e.preventDefault(); const b = row.getBoundingClientRect(); const after = e.clientY > b.top + b.height / 2; row.classList.toggle('drop-after', after); row.classList.toggle('drop-before', !after); });
+      row.addEventListener('dragleave', () => row.classList.remove('drop-after', 'drop-before'));
+      row.addEventListener('drop', e => {
+        e.preventDefault(); const from = el._dragFrom; row.classList.remove('drop-after', 'drop-before');
+        if (from == null || from === i) return;
+        const b = row.getBoundingClientRect(); const after = e.clientY > b.top + b.height / 2;
+        const [moved] = items.splice(from, 1); let to = i > from ? i - 1 : i; if (after) to++; items.splice(to, 0, moved); commit();
+      });
+      row.addEventListener('dragend', () => { row.classList.remove('dragging'); el._dragFrom = null; el.querySelectorAll('.le-row').forEach(r => r.classList.remove('drop-after', 'drop-before')); });
+      list.appendChild(row);
+    });
+    el.appendChild(list);
+    const add = document.createElement('div'); add.className = 'le-add';
+    const inp = document.createElement('input'); inp.className = 'field-input'; inp.placeholder = cfg.placeholder || 'Add…'; inp.setAttribute('aria-label', cfg.placeholder || 'Add');
+    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn-ghost'; btn.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Add';
+    function addNow() {
+      const v = inp.value.trim(); if (!v) { inp.focus(); return; }
+      if (items.some(x => x.toLowerCase() === v.toLowerCase())) { showToast('“' + v + '” is already in the list'); inp.select(); return; }
+      items.push(v); commit(); const ni = el.querySelector('.le-add input'); if (ni) ni.focus();
+    }
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addNow(); } });
+    btn.onclick = addNow;
+    add.appendChild(inp); add.appendChild(btn); el.appendChild(add);
+  }
+  function edit(i, row, txt) {
+    const inp = document.createElement('input'); inp.className = 'le-input'; inp.value = items[i]; inp.setAttribute('aria-label', 'Rename ' + items[i]);
+    let done = false;
+    function finish(save) {
+      if (done) return; done = true;
+      const v = inp.value.trim();
+      if (save && v && v !== items[i]) {
+        if (items.some((x, j) => j !== i && x.toLowerCase() === v.toLowerCase())) { showToast('“' + v + '” is already in the list'); draw(); return; }
+        const old = items[i]; items[i] = v; if (cfg.onRename) cfg.onRename(old, v); commit();
+      } else draw();
+    }
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); } });
+    inp.addEventListener('blur', () => finish(true));
+    row.replaceChild(inp, txt); inp.focus(); inp.select();
+  }
+  draw();
+}
+
+// Shared "Owners & Phases" panel (wizard step 2 and Settings). state = { usePhases, phases, owners }
+function renderOwnersPhases(container, state, onChange) {
+  container.innerHTML = `
+    <div class="le-block" id="opPhasesBlock">
+      <div class="le-head">
+        <div><div class="le-title">Use phases</div><div class="le-sub">Group tasks under phase headers. Off = one flat list.</div></div>
+        <span class="vm-switch"><input type="checkbox" id="opUsePhases" ${state.usePhases ? 'checked' : ''} aria-label="Use phases"><span class="vm-slider"></span></span>
+      </div>
+      <div id="opPhasesEditor" class="${state.usePhases ? '' : 'le-collapsed'}"></div>
+    </div>
+    <div class="le-block">
+      <div class="le-head">
+        <div><div class="le-title">Owners</div><div class="le-sub">People or teams that tasks can be assigned to.</div></div>
+        <button type="button" class="btn-ghost" id="opImport" title="Add the unique Phase and Owner values found in a filled template"><svg class="ic" aria-hidden="true"><use href="#ic-upload-simple"></use></svg>Import from template</button>
+        <input type="file" id="opImportFile" accept=".xlsx,.csv" style="display:none">
+      </div>
+      <div id="opOwnersEditor"></div>
+    </div>`;
+  const impBtn = container.querySelector('#opImport'), impFile = container.querySelector('#opImportFile');
+  impBtn.onclick = () => impFile.click();
+  impFile.addEventListener('change', async () => {
+    const f = impFile.files[0]; impFile.value = ''; if (!f) return;
+    const parsed = await parseSheetFile(f);
+    if (parsed.error) { showToast(parsed.error); return; }
+    const cols = mapColumns(parsed.headers);
+    const addP = [], addO = [];
+    parsed.rows.forEach(r => {
+      const p = cols.phase >= 0 ? String(r[cols.phase] ?? '').trim() : '', o = cols.owner >= 0 ? String(r[cols.owner] ?? '').trim() : '';
+      if (p && !state.phases.some(x => x.toLowerCase() === p.toLowerCase()) && !addP.some(x => x.toLowerCase() === p.toLowerCase())) addP.push(p);
+      if (o && !state.owners.some(x => x.toLowerCase() === o.toLowerCase()) && !addO.some(x => x.toLowerCase() === o.toLowerCase())) addO.push(o);
+    });
+    state.phases.push(...addP); state.owners.push(...addO);
+    renderOwnersPhases(container, state, onChange);
+    if (addP.length || addO.length) onChange && onChange();
+    showToast((addP.length || addO.length) ? 'Added ' + addP.length + ' phase' + (addP.length === 1 ? '' : 's') + ' and ' + addO.length + ' owner' + (addO.length === 1 ? '' : 's') + ' from “' + f.name + '”' : 'No new phases or owners found in “' + f.name + '”');
+  });
+  const ph = container.querySelector('#opPhasesEditor'), ow = container.querySelector('#opOwnersEditor');
+  renderListEditor(ph, { items: state.phases, placeholder: 'New phase, e.g. 1. Discovery', emptyText: 'No phases yet.', onChange: () => onChange && onChange(), canDelete: state.canDeletePhase, onRename: state.onRenamePhase });
+  renderListEditor(ow, { items: state.owners, placeholder: 'New owner, e.g. Medison', emptyText: 'No owners yet.', onChange: () => onChange && onChange(), canDelete: state.canDeleteOwner, onRename: state.onRenameOwner });
+  container.querySelector('#opUsePhases').addEventListener('change', function() { state.usePhases = this.checked; ph.classList.toggle('le-collapsed', !this.checked); onChange && onChange(); });
+}
+
+// ===== LOGO PROCESSING (client-side resize → base64, size-capped) =====
+const LOGO_MAX_W = 240, LOGO_MAX_BYTES = 100 * 1024;
+function dataUrlBytes(u) { const i = u.indexOf(','); const b64 = u.slice(i + 1); return Math.floor(b64.length * 3 / 4) - (b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0); }
+function processLogoFile(file) {
+  return new Promise(resolve => {
+    const name = (file.name || '').toLowerCase();
+    const isSvg = file.type === 'image/svg+xml' || name.endsWith('.svg');
+    const isPng = file.type === 'image/png' || name.endsWith('.png');
+    const isJpg = file.type === 'image/jpeg' || name.endsWith('.jpg') || name.endsWith('.jpeg');
+    if (!isSvg && !isPng && !isJpg) return resolve({ error: 'Only PNG, SVG or JPG files are accepted.' });
+    const fr = new FileReader();
+    fr.onerror = () => resolve({ error: 'The file could not be read.' });
+    if (isSvg) {
+      fr.onload = () => {
+        const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(fr.result)));
+        if (dataUrlBytes(url) > LOGO_MAX_BYTES) return resolve({ error: 'This SVG is ' + Math.round(dataUrlBytes(url) / 1024) + 'KB. Logos must be under 100KB — simplify it or export a PNG.' });
+        resolve({ dataUrl: url });
+      };
+      fr.readAsText(file);
+      return;
+    }
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => resolve({ error: 'This image could not be decoded.' });
+      img.onload = () => {
+        const scale = Math.min(1, LOGO_MAX_W / img.naturalWidth);
+        const w = Math.max(1, Math.round(img.naturalWidth * scale)), h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        const url = isJpg ? c.toDataURL('image/jpeg', 0.86) : c.toDataURL('image/png');
+        const bytes = dataUrlBytes(url);
+        if (bytes > LOGO_MAX_BYTES) return resolve({ error: 'Even at 240px wide this logo is ' + Math.round(bytes / 1024) + 'KB (limit 100KB). Try a simpler or flatter image.' });
+        resolve({ dataUrl: url, width: w, height: h, bytes });
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+// ===== NEW-GANTT WIZARD (3 steps) =====
+let wiz = null;
+const WIZ_STEPS = ['Branding', 'Owners & Phases', 'Tasks'];
+function openWizard() {
+  wiz = { step: 1, logo: null, title: '', subtitle: '', name: '', usePhases: true, phases: [], owners: [], source: 'empty', dupId: ganttList()[0].id, dirty: false };
+  openDialog({ title: 'Create new gantt', desc: 'Three short steps: branding, owners & phases, then tasks.', onEscape: wizardCancel, maxWidth: 580 });
+  renderWizard();
+}
+function wizStepsHTML() {
+  return '<div class="wiz-steps" aria-label="Progress">' + WIZ_STEPS.map((lab, i) => {
+    const n = i + 1, cls = n < wiz.step ? 'done' : n === wiz.step ? 'current' : '';
+    const num = n < wiz.step ? '<svg class="ic" aria-hidden="true"><use href="#ic-check-circle"></use></svg>' : n;
+    return (i ? '<div class="wiz-line"></div>' : '') + `<div class="wiz-step ${cls}" ${n === wiz.step ? 'aria-current="step"' : ''}><span class="wiz-num">${num}</span>${lab}</div>`;
+  }).join('') + '</div>';
+}
+function defaultLockupHTML() { return document.getElementById('logo-default').innerHTML; }
+function wizPreviewHTML() {
+  const logo = wiz.logo ? `<img class="custom-logo" src="${wiz.logo}" alt="">` : `<div class="logo-group">${defaultLockupHTML()}</div>`;
+  const t = wiz.title.trim() || 'Gantt title', st = wiz.subtitle.trim();
+  return `${logo}<div class="logo-divider"></div><div class="title-block"><div class="project-title" style="${wiz.title.trim() ? '' : 'color:var(--tg-muted)'}">${escH(t)}</div>${st ? `<div class="project-subtitle">${escH(st)}</div>` : ''}</div>`;
+}
+function renderWizard() {
+  document.getElementById('dSteps').innerHTML = wizStepsHTML();
+  const body = document.getElementById('dBody'), foot = document.getElementById('dFooter');
+  if (wiz.step === 1) {
+    body.innerHTML = `
+      <div>
+        <label class="field-label">Logo <span style="font-weight:400;text-transform:none;letter-spacing:0">· optional · PNG, SVG or JPG, resized to 240px wide, max 100KB</span></label>
+        ${logoZoneHTML(wiz.logo, 'wz')}
+      </div>
+      <div><label class="field-label" for="wzTitle">Gantt title <span class="req" aria-hidden="true">*</span></label>
+        <input type="text" id="wzTitle" class="field-input" required placeholder="e.g. ACME — Website Relaunch" value="${escH(wiz.title)}" autocomplete="off"></div>
+      <div><label class="field-label" for="wzSubtitle">Subtitle</label>
+        <input type="text" id="wzSubtitle" class="field-input" placeholder="e.g. Phase 1 · Q4 2026" value="${escH(wiz.subtitle)}" autocomplete="off"></div>
+      <div><label class="field-label" for="wzName">Short name in the gantt list</label>
+        <input type="text" id="wzName" class="field-input" placeholder="Defaults to the title" value="${escH(wiz.name)}" autocomplete="off"></div>
+      <div><label class="field-label">Header preview</label><div class="hdr-preview" id="wzPreview">${wizPreviewHTML()}</div></div>`;
+    wizardLogo = wireLogoZone(body, 'wz', !!wiz.logo, url => { wiz.logo = url; wiz.dirty = true; renderWizard(); });
+    ['wzTitle', 'wzSubtitle', 'wzName'].forEach(id => body.querySelector('#' + id).addEventListener('input', function() {
+      wiz[id === 'wzTitle' ? 'title' : id === 'wzSubtitle' ? 'subtitle' : 'name'] = this.value; wiz.dirty = true;
+      body.querySelector('#wzPreview').innerHTML = wizPreviewHTML(); wizardSyncNext();
+    }));
+  } else if (wiz.step === 2) {
+    body.innerHTML = '<div id="wzOP" style="display:flex;flex-direction:column;gap:12px"></div>';
+    renderOwnersPhases(body.querySelector('#wzOP'), wiz, () => { wiz.dirty = true; });
+  } else {
+    const cards = [
+      { k: 'empty', ic: 'ic-plus-o', t: 'Start empty', d: 'Begin with no tasks and add them one by one.' },
+      { k: 'template', ic: 'ic-file-xls-o', t: 'Import from template', d: 'Create the gantt, then load a filled Excel / CSV template.' },
+      { k: 'dup', ic: 'ic-copy', t: 'Copy an existing gantt', d: 'Start from the tasks of a gantt you already have.' },
+    ];
+    body.innerHTML = `<div class="src-cards" role="radiogroup" aria-label="Where should the tasks come from?">` + cards.map(c =>
+      `<button type="button" class="src-card" role="radio" aria-checked="${wiz.source === c.k}" ${c.soon ? 'aria-disabled="true" title="Available after the template import is built (step A5)"' : ''} data-src="${c.k}">
+        <svg class="ic" aria-hidden="true"><use href="#${c.ic}"></use></svg><b>${c.t}${c.soon ? ' <span class="am-soon">Soon</span>' : ''}</b><span>${c.d}</span></button>`).join('') + `</div>
+      <div id="wzDupWrap" style="${wiz.source === 'dup' ? '' : 'display:none'}">
+        <label class="field-label" for="wzDup">Copy tasks from</label>
+        <select id="wzDup" class="field-input">${ganttList().map(g => `<option value="${g.id}" ${g.id === wiz.dupId ? 'selected' : ''}>${escH(g.name)} (${g.tasks.length} task${g.tasks.length === 1 ? '' : 's'})</option>`).join('')}</select>
+        <div class="field-hint">Owners and phases used by the copied tasks are added to the lists from step 2.</div>
+      </div>`;
+    body.querySelectorAll('.src-card').forEach(b => b.addEventListener('click', () => {
+      if (b.getAttribute('aria-disabled') === 'true') return;
+      wiz.source = b.dataset.src; wiz.dirty = true;
+      body.querySelectorAll('.src-card').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+      body.querySelector('#wzDupWrap').style.display = wiz.source === 'dup' ? '' : 'none';
+    }));
+    body.querySelector('#wzDup').addEventListener('change', function() { wiz.dupId = this.value; });
+  }
+  foot.innerHTML = `
+    <div class="dlg-left">${wiz.step > 1 ? '<button type="button" class="btn-ghost" id="wzBack"><svg class="ic" aria-hidden="true" style="transform:rotate(180deg)"><use href="#ic-caret-right"></use></svg>Back</button>' : ''}</div>
+    <div class="footer-actions">
+      <button type="button" class="cancel-btn" id="wzCancel">Cancel</button>
+      <button type="button" class="save-btn" id="wzNext">${wiz.step < 3 ? 'Next' : 'Create gantt'}</button>
+    </div>`;
+  const back = foot.querySelector('#wzBack'); if (back) back.onclick = () => { wiz.step--; renderWizard(); };
+  foot.querySelector('#wzCancel').onclick = wizardCancel;
+  foot.querySelector('#wzNext').onclick = () => { if (wiz.step < 3) { wiz.step++; renderWizard(); } else wizardCreate(); };
+  wizardSyncNext();
+  const f = body.querySelector('#wzTitle') || body.querySelector(FOCUSABLE); if (f) setTimeout(() => f.focus(), 20);
+}
+function wizardSyncNext() {
+  const btn = document.getElementById('wzNext'); if (!btn) return;
+  const ok = wiz.step === 1 ? !!wiz.title.trim() : wiz.step === 3 ? (wiz.source !== 'dup' || !!store.gantts[wiz.dupId]) : true;
+  btn.disabled = !ok; btn.title = ok ? '' : 'Enter a gantt title to continue';
+}
+// Reusable logo upload zone. logoZoneHTML(logo, prefix) renders it; wireLogoZone(root, prefix, onChange) wires it.
+// onChange(dataUrl | null) is called after a successful upload or a removal; the caller re-renders.
+function logoZoneHTML(logo, p) {
+  return `
+      <div class="drop-zone ${logo ? 'has-logo' : ''}" id="${p}Drop" tabindex="0" role="button" aria-label="Upload logo: drop a file here or press Enter to choose one">
+        ${logo
+          ? `<img class="logo-preview" src="${logo}" alt="Uploaded logo"><div style="display:flex;gap:6px"><button type="button" class="btn-ghost" id="${p}Replace">Replace</button><button type="button" class="btn-ghost" id="${p}Remove"><svg class="ic" aria-hidden="true"><use href="#ic-trash"></use></svg>Remove logo</button></div>`
+          : `<svg class="ic" aria-hidden="true"><use href="#ic-image-o"></use></svg><div><b>Drop a logo here</b> or click to choose a file</div><div>Leave empty to keep the Medison / GA-DA header</div>`}
+      </div>
+      <input type="file" id="${p}File" accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml" style="display:none">
+      <div class="field-error" id="${p}LogoErr" aria-live="assertive"></div>`;
+}
+function wireLogoZone(root, p, hasLogo, onChange) {
+  const drop = root.querySelector('#' + p + 'Drop'), file = root.querySelector('#' + p + 'File'), err = root.querySelector('#' + p + 'LogoErr');
+  const pick = () => file.click();
+  async function handle(f) {
+    err.textContent = '';
+    const r = await processLogoFile(f);
+    if (r.error) { err.textContent = r.error; return; }
+    onChange(r.dataUrl);
+  }
+  if (!hasLogo) { drop.addEventListener('click', pick); drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } }); }
+  else { root.querySelector('#' + p + 'Replace').onclick = pick; root.querySelector('#' + p + 'Remove').onclick = () => onChange(null); }
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
+  file.addEventListener('change', () => { if (file.files[0]) handle(file.files[0]); file.value = ''; });
+  return handle;   // exposed for tests / programmatic uploads
+}
+let wizardLogo = null;   // set while step 1 is rendered: (file) => Promise
+function wizardCancel() {
+  if (!wiz) { closeDialog(); return; }
+  if (!wiz.dirty) { closeDialog(); wiz = null; return; }
+  confirmDialog({
+    title: 'Discard this new gantt?', desc: 'Nothing has been saved yet.',
+    items: [wiz.title.trim() ? 'Title entered: <b>' + escH(wiz.title.trim()) + '</b>' : 'No title entered yet', (wiz.phases.length + wiz.owners.length) ? 'Phases / owners typed in step 2: <b>' + wiz.phases.length + ' / ' + wiz.owners.length + '</b>' : 'No phases or owners added'],
+    confirmLabel: 'Discard', cancelLabel: 'Keep editing',
+    onConfirm: () => { closeDialog(); wiz = null; }
+  });
+}
+function wizardCreate() {
+  if (!wiz.title.trim()) { wiz.step = 1; renderWizard(); return; }
+  const src = wiz.source === 'dup' ? store.gantts[wiz.dupId] : null;
+  const viaTemplate = wiz.source === 'template';
+  const t = src ? deep(src.tasks) : [];
+  let phases = wiz.phases.slice(), owners = wiz.owners.slice();
+  if (src) { phases = uniq([...phases, ...t.map(x => x.phase)]); owners = uniq([...owners, ...t.map(x => x.responsible)]); }
+  if (!wiz.usePhases) { t.forEach(x => x.phase = ''); phases = wiz.phases.slice(); }
+  const g = makeGantt({ name: wiz.name.trim() || wiz.title.trim(), title: wiz.title.trim(), subtitle: wiz.subtitle.trim(), logo: wiz.logo,
+    usePhases: wiz.usePhases, phases, owners, tasks: t, view: src ? src.settings.view : undefined });
+  store.gantts[g.id] = g;
+  if (!persistStore()) { delete store.gantts[g.id]; return; }   // storage full → toast already explained what to do
+  closeDialog(); wiz = null;
+  switchGantt(g.id, { silent: true });
+  showToast('Created “' + g.name + '”' + (t.length ? ' with ' + t.length + ' copied task' + (t.length === 1 ? '' : 's') : viaTemplate ? ' — now pick the filled template' : ' — add your first task'));
+  if (viaTemplate) setTimeout(() => openImportDialog({ mode: 'add' }), 60);
+}
+
+// =====================================================================
+// XLSX — minimal writer (zip "store" + inline strings) and reader (zip + DecompressionStream).
+// No external library: keeps the file self-contained and small. Excel, Numbers and LibreOffice open the output.
+// =====================================================================
+const CRC_TABLE = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c; } return t; })();
+function crc32(u8) { let c = -1; for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ -1) >>> 0; }
+function u8(str) { return new TextEncoder().encode(str); }
+function zipStore(files) {   // files: [{ name, data: Uint8Array }] → Blob (no compression; Excel doesn't mind)
+  const parts = [], central = []; let off = 0;
+  const le16 = v => [v & 255, (v >> 8) & 255], le32 = v => [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255];
+  for (const f of files) {
+    const name = u8(f.name), crc = crc32(f.data), n = f.data.length;
+    const local = new Uint8Array([...le32(0x04034b50), ...le16(20), ...le16(0x0800), ...le16(0), ...le16(0), ...le16(0x21), ...le32(crc), ...le32(n), ...le32(n), ...le16(name.length), ...le16(0), ...name]);
+    parts.push(local, f.data);
+    central.push(new Uint8Array([...le32(0x02014b50), ...le16(20), ...le16(20), ...le16(0x0800), ...le16(0), ...le16(0), ...le16(0x21), ...le32(crc), ...le32(n), ...le32(n), ...le16(name.length), ...le16(0), ...le16(0), ...le16(0), ...le16(0), ...le32(0), ...le32(off), ...name]));
+    off += local.length + n;
+  }
+  const cdSize = central.reduce((a, c) => a + c.length, 0);
+  const eocd = new Uint8Array([...le32(0x06054b50), ...le16(0), ...le16(0), ...le16(files.length), ...le16(files.length), ...le32(cdSize), ...le32(off), ...le16(0)]);
+  return new Blob([...parts, ...central, eocd], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+function xmlEsc(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function colLetter(i) { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = (i - m - 1) / 26; } return s; }
+// rows: array of arrays of strings; styleRow0 = header style index
+function sheetXML(rows, opts) {
+  opts = opts || {};
+  let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">';
+  x += `<sheetViews><sheetView workbookViewId="0" ${opts.rtl ? 'rightToLeft="1"' : ''} ${opts.freeze ? '' : ''}>${opts.freeze ? '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' : ''}</sheetView></sheetViews>`;
+  if (opts.widths) x += '<cols>' + opts.widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('') + '</cols>';
+  x += '<sheetData>';
+  rows.forEach((r, ri) => {
+    x += `<row r="${ri + 1}">`;
+    r.forEach((v, ci) => { if (v === '' || v == null) return; const st = ri === 0 && opts.headerStyle ? ` s="${opts.headerStyle}"` : (opts.cellStyle ? ` s="${opts.cellStyle}"` : ''); x += `<c r="${colLetter(ci)}${ri + 1}" t="inlineStr"${st}><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`; });
+    x += '</row>';
+  });
+  x += '</sheetData>';
+  if (opts.validations) x += '<dataValidations count="' + opts.validations.length + '">' + opts.validations.map(v => `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" errorTitle="Not in list" error="Pick a value from the list." sqref="${v.sqref}"><formula1>${xmlEsc(v.formula)}</formula1></dataValidation>`).join('') + '</dataValidations>';
+  x += '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>';
+  return x;
+}
+const TEMPLATE_STATUSES = ['Not started', 'In progress', 'Completed', 'On hold'];
+function templateColumns(g) { return (g.settings.usePhases ? ['Phase'] : []).concat(['Task', 'Owner', 'Status', 'Start', 'End', 'Notes']); }
+function buildTemplateXlsx(g) {
+  const cols = templateColumns(g), useP = g.settings.usePhases;
+  const p0 = g.settings.phases[0] || '1. Discovery', p1 = g.settings.phases[1] || p0, o0 = g.settings.owners[0] || 'Medison', o1 = g.settings.owners[1] || o0;
+  const today = new Date(); const d = n => fd(addD(today, n));
+  const ex = [
+    (useP ? [p0] : []).concat(['Kick-off meeting', o0, 'Completed', d(0), d(1), 'Example row — replace or delete']),
+    (useP ? [p0] : []).concat(['Collect source materials', o1, 'In progress', d(2), d(6), '']),
+    (useP ? [p1] : []).concat(['First draft', o0, 'Not started', d(7), d(13), 'End must not be before Start']),
+  ];
+  const widths = (useP ? [26] : []).concat([38, 18, 14, 12, 12, 40]);
+  const ci = name => cols.indexOf(name);
+  const validations = [{ sqref: `${colLetter(ci('Status'))}2:${colLetter(ci('Status'))}1000`, formula: '"' + TEMPLATE_STATUSES.join(',') + '"' }];
+  if (g.settings.owners.length) validations.push({ sqref: `${colLetter(ci('Owner'))}2:${colLetter(ci('Owner'))}1000`, formula: 'Lists!$A$2:$A$' + (g.settings.owners.length + 1) });
+  if (useP && g.settings.phases.length) validations.push({ sqref: `A2:A1000`, formula: 'Lists!$B$2:$B$' + (g.settings.phases.length + 1) });
+  const tasks = sheetXML([cols, ...ex], { widths, headerStyle: 1, freeze: true, validations });
+  const instr = sheetXML([
+    ['איך למלא את הטמפלייט'],
+    [''],
+    ['1. כל משימה בשורה נפרדת בגיליון Tasks. אל תשנו את שורת הכותרת ואל תוסיפו עמודות.'],
+    ['2. עמודות חובה: ' + (useP ? 'Phase, ' : '') + 'Task, Status, Start, End. עמודות ' + (useP ? 'Owner ו-Notes' : 'Owner ו-Notes') + ' הן רשות.'],
+    ['3. Status: אחד מהערכים ' + TEMPLATE_STATUSES.join(' / ') + ' (יש רשימה נפתחת בתא).'],
+    ['4. תאריכים בפורמט YYYY-MM-DD, למשל ' + d(0) + '. גם תאריך רגיל של אקסל יתקבל. End לא יכול להיות לפני Start.'],
+    ['5. Owner' + (useP ? ' ו-Phase' : '') + ': בחרו מהרשימה הנפתחת או הקלידו ערך חדש. ערכים חדשים יתווספו אוטומטית לרשימות של הגאנט.'],
+    ['6. שלוש שורות הדוגמה בגיליון Tasks נועדו להמחשה. מחקו או החליפו אותן.'],
+    ['7. שמרו את הקובץ כ-.xlsx (או .csv) וייבאו דרך התפריט ⋮ ← Import from template. לפני הייבוא תוצג תצוגה מקדימה עם השורות התקינות והשגויות.'],
+    [''],
+    ['גאנט: ' + g.name + ' · נוצר ' + fd(today)],
+  ], { rtl: true, widths: [120], headerStyle: 1 });
+  const lists = sheetXML([['Owners', 'Phases'], ...Array.from({ length: Math.max(g.settings.owners.length, g.settings.phases.length) }, (_, i) => [g.settings.owners[i] || '', g.settings.phases[i] || ''])], { widths: [24, 30], headerStyle: 1 });
+  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FF1A1A2E"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE3E7EE"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  const workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Tasks" sheetId="1" r:id="rId1"/><sheet name="Instructions" sheetId="2" r:id="rId2"/><sheet name="Lists" sheetId="3" state="hidden" r:id="rId3"/></sheets></workbook>';
+  const wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+  const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  const ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
+  return zipStore([
+    { name: '[Content_Types].xml', data: u8(ct) }, { name: '_rels/.rels', data: u8(rels) },
+    { name: 'xl/workbook.xml', data: u8(workbook) }, { name: 'xl/_rels/workbook.xml.rels', data: u8(wbRels) },
+    { name: 'xl/styles.xml', data: u8(styles) },
+    { name: 'xl/worksheets/sheet1.xml', data: u8(tasks) }, { name: 'xl/worksheets/sheet2.xml', data: u8(instr) }, { name: 'xl/worksheets/sheet3.xml', data: u8(lists) },
+  ]);
+}
+function downloadTemplate() {
+  const g = G();
+  const blob = buildTemplateXlsx(g);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fileSlug(g.name) + '_template.xlsx'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  showToast('Template downloaded — fill the Tasks sheet, then use Import from template');
+}
+
+// ---- reader ----
+async function inflateRaw(bytes) {
+  if (typeof DecompressionStream === 'undefined') throw new Error('This browser cannot unzip .xlsx files. Save the sheet as CSV and import that instead.');
+  const ds = new DecompressionStream('deflate-raw');
+  return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer());
+}
+async function readZip(buf) {
+  const b = new Uint8Array(buf), dv = new DataView(buf);
+  let e = b.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('Not a valid .xlsx file (zip directory not found).');
+  const count = dv.getUint16(e + 10, true), cdOff = dv.getUint32(e + 16, true);
+  const files = new Map(); let p = cdOff;
+  for (let i = 0; i < count; i++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), loff = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(b.subarray(p + 46, p + 46 + nlen));
+    const lnlen = dv.getUint16(loff + 26, true), lelen = dv.getUint16(loff + 28, true);
+    const start = loff + 30 + lnlen + lelen;
+    const data = b.subarray(start, start + csize);
+    files.set(name, method === 8 ? await inflateRaw(data) : method === 0 ? data : null);
+    p += 46 + nlen + elen + clen;
+  }
+  return files;
+}
+function xmlDoc(u8arr) { return new DOMParser().parseFromString(new TextDecoder().decode(u8arr), 'application/xml'); }
+function cellRefToCol(ref) { let c = 0; for (const ch of ref) { if (ch < 'A' || ch > 'Z') break; c = c * 26 + (ch.charCodeAt(0) - 64); } return c - 1; }
+function excelSerialToISO(n) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400000); return d.toISOString().slice(0, 10); }
+async function parseXlsx(buf) {
+  const files = await readZip(buf);
+  const wb = files.get('xl/workbook.xml'); if (!wb) throw new Error('Not a valid .xlsx file (no workbook).');
+  const wbx = xmlDoc(wb), relsx = xmlDoc(files.get('xl/_rels/workbook.xml.rels'));
+  const rels = {}; relsx.querySelectorAll('Relationship').forEach(r => rels[r.getAttribute('Id')] = r.getAttribute('Target'));
+  const sheets = [...wbx.getElementsByTagName('sheet')].map(sh => ({ name: sh.getAttribute('name'), rid: sh.getAttribute('r:id') || sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') }));
+  const pick = sheets.find(x => (x.name || '').toLowerCase() === 'tasks') || sheets[0];
+  if (!pick) throw new Error('The workbook has no sheets.');
+  let target = rels[pick.rid] || 'worksheets/sheet1.xml'; target = target.replace(/^\//, ''); if (!target.startsWith('xl/')) target = 'xl/' + target;
+  const shared = []; const ss = files.get('xl/sharedStrings.xml');
+  if (ss) xmlDoc(ss).getElementsByTagName('si').forEach && [...xmlDoc(ss).getElementsByTagName('si')].forEach(si => shared.push([...si.getElementsByTagName('t')].map(t => t.textContent).join('')));
+  const sx = xmlDoc(files.get(target));
+  const rows = [];
+  [...sx.getElementsByTagName('row')].forEach(row => {
+    const out = [];
+    [...row.getElementsByTagName('c')].forEach(c => {
+      const col = cellRefToCol(c.getAttribute('r') || ''); const t = c.getAttribute('t'); const v = c.getElementsByTagName('v')[0];
+      let val = '';
+      if (t === 's') val = shared[+(v ? v.textContent : 0)] ?? '';
+      else if (t === 'inlineStr') val = [...c.getElementsByTagName('t')].map(x => x.textContent).join('');
+      else if (t === 'b') val = v && v.textContent === '1' ? 'TRUE' : 'FALSE';
+      else if (t === 'd') val = (v ? v.textContent : '').slice(0, 10);
+      else if (v) { const num = Number(v.textContent); val = isFinite(num) ? num : v.textContent; }
+      out[col] = val;
+    });
+    rows.push(out);
+  });
+  return { sheet: pick.name, rows };
+}
+function parseCSV(text) {
+  text = text.replace(/^﻿/, ''); const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ',') { row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += ch;
+  }
+  if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+// → { headers:[…], rows:[[…]], sheet, name } | { error }
+async function parseSheetFile(file) {
+  try {
+    const name = (file.name || '').toLowerCase();
+    let rows, sheet = null;
+    if (name.endsWith('.csv') || file.type === 'text/csv') rows = parseCSV(await file.text());
+    else if (name.endsWith('.xlsx')) ({ rows, sheet } = await parseXlsx(await file.arrayBuffer()));
+    else return { error: 'Only .xlsx or .csv files can be imported. Download the template from the menu to get started.' };
+    const nonEmpty = r => r && r.some(v => String(v ?? '').trim() !== '');
+    const hi = rows.findIndex(nonEmpty);
+    if (hi < 0) return { error: 'The file is empty.' };
+    const headers = rows[hi].map(v => String(v ?? '').trim());
+    return { headers, rows: rows.slice(hi + 1).filter(nonEmpty), headerRow: hi + 1, sheet, name: file.name };
+  } catch (e) { return { error: e.message || 'The file could not be read.' }; }
+}
+const COLUMN_ALIASES = { phase: ['phase', 'שלב'], task: ['task', 'name', 'title', 'משימה'], owner: ['owner', 'responsible', 'assignee', 'אחראי'], status: ['status', 'סטטוס'], start: ['start', 'start date', 'from', 'התחלה'], end: ['end', 'end date', 'due', 'due date', 'to', 'סיום'], notes: ['notes', 'note', 'comments', 'הערות'] };
+function mapColumns(headers) {
+  const h = headers.map(x => x.toLowerCase().trim()); const m = {};
+  for (const k of Object.keys(COLUMN_ALIASES)) m[k] = h.findIndex(x => COLUMN_ALIASES[k].includes(x));
+  return m;
+}
+function normalizeDate(v) {
+  if (v === '' || v == null) return null;
+  if (typeof v === 'number') return v > 20000 && v < 80000 ? excelSerialToISO(v) : null;
+  const s = String(v).trim(); let m;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  if ((m = s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})$/))) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  const d = new Date(s); return isNaN(d) ? null : fd(d);
+}
+function validDate(iso) { if (!iso) return false; const d = pd(iso); return !isNaN(d) && fd(d) === iso; }
+function normalizeStatus(v) { const s = String(v ?? '').trim().toLowerCase().replace(/[_-]/g, ' '); return TEMPLATE_STATUSES.find(x => x.toLowerCase() === s) || null; }
+// Validate parsed rows against this gantt's rules → [{ n, ok, task, errors }]
+function validateImportRows(parsed, g) {
+  const c = mapColumns(parsed.headers), useP = g.settings.usePhases;
+  const missing = ['task', 'status', 'start', 'end'].concat(useP ? ['phase'] : []).filter(k => c[k] < 0);
+  if (missing.length) return { fatal: 'Missing column' + (missing.length > 1 ? 's' : '') + ': ' + missing.map(k => k[0].toUpperCase() + k.slice(1)).join(', ') + '. Found: ' + (parsed.headers.filter(Boolean).join(', ') || 'nothing') + '. Download the template to get the right layout.' };
+  const get = (r, k) => c[k] >= 0 ? r[c[k]] : '';
+  const str = v => String(v ?? '').trim();
+  const rows = parsed.rows.map((r, i) => {
+    const errors = [];
+    const task = str(get(r, 'task')), phase = str(get(r, 'phase')), owner = str(get(r, 'owner')), notes = str(get(r, 'notes'));
+    const status = normalizeStatus(get(r, 'status')); const start = normalizeDate(get(r, 'start')), end = normalizeDate(get(r, 'end'));
+    if (!task) errors.push('Task name is empty');
+    if (useP && !phase) errors.push('Phase is empty');
+    if (!status) errors.push(str(get(r, 'status')) ? 'Status “' + str(get(r, 'status')) + '” is not one of: ' + TEMPLATE_STATUSES.join(', ') : 'Status is empty');
+    if (!validDate(start)) errors.push(str(get(r, 'start')) ? 'Start date “' + str(get(r, 'start')) + '” is not a valid date (use YYYY-MM-DD)' : 'Start date is empty');
+    if (!validDate(end)) errors.push(str(get(r, 'end')) ? 'End date “' + str(get(r, 'end')) + '” is not a valid date (use YYYY-MM-DD)' : 'End date is empty');
+    if (validDate(start) && validDate(end) && pd(end) < pd(start)) errors.push('End date is before start date');
+    return { n: parsed.headerRow + i + 1, ok: !errors.length, errors, task, phase: useP ? phase : '', owner, status, start, end, notes };
+  });
+  return { rows, cols: c };
+}
+
+// ===== IMPORT DIALOG (pick file + mode → preview → apply, with Undo) =====
+let imp = null;
+function openImportDialog(o) {
+  if (isReadOnly()) { showToast('This is a read-only snapshot — open an editable copy first (banner above).'); return; }
+  imp = { mode: (o && o.mode) || 'add', parsed: null, result: null, fileName: '' };
+  openDialog({ title: 'Import from template', desc: 'Load tasks from a filled Excel (.xlsx) or CSV template into “' + G().name + '”.', maxWidth: 720, onEscape: () => { closeDialog(); imp = null; } });
+  renderImportPick();
+}
+function renderImportPick() {
+  const body = document.getElementById('dBody'), foot = document.getElementById('dFooter');
+  document.getElementById('dSteps').innerHTML = '';
+  body.innerHTML = `
+    <div>
+      <label class="field-label">File</label>
+      <div class="file-zone" id="imZone" tabindex="0" role="button" aria-label="Choose a file: drop it here or press Enter to browse">
+        <svg class="ic" aria-hidden="true"><use href="#ic-file-xls-o"></use></svg>
+        <div><b>Drop the filled template here</b> or click to choose a file</div>
+        <div>.xlsx or .csv · the first sheet named “Tasks” is read</div>
+      </div>
+      <input type="file" id="imFile" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" style="display:none">
+      <div class="field-error" id="imErr" aria-live="assertive"></div>
+      <div class="field-hint">Don’t have the template yet? <a href="#" id="imGetTpl">Download it</a> — it already contains this gantt’s phases and owners as drop-downs.</div>
+    </div>
+    <div>
+      <label class="field-label">What to do with the existing ${tasks.length} task${tasks.length === 1 ? '' : 's'}</label>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label class="choice"><input type="radio" name="imMode" value="add" ${imp.mode === 'add' ? 'checked' : ''}>Add the imported tasks to the existing ones</label>
+        <label class="choice"><input type="radio" name="imMode" value="replace" ${imp.mode === 'replace' ? 'checked' : ''}>Replace all — delete the current tasks first <span class="field-hint" style="margin:0">(you can undo for 10 seconds)</span></label>
+      </div>
+    </div>`;
+  foot.innerHTML = `<span></span><div class="footer-actions"><button type="button" class="cancel-btn" id="imCancel">Cancel</button><button type="button" class="save-btn" id="imNext" disabled title="Choose a file first">Preview</button></div>`;
+  const zone = body.querySelector('#imZone'), file = body.querySelector('#imFile'), err = body.querySelector('#imErr');
+  const pick = () => file.click();
+  zone.addEventListener('click', pick); zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); if (e.dataTransfer.files[0]) importPickFile(e.dataTransfer.files[0]); });
+  file.addEventListener('change', () => { if (file.files[0]) importPickFile(file.files[0]); file.value = ''; });
+  body.querySelectorAll('input[name=imMode]').forEach(r => r.addEventListener('change', () => { imp.mode = r.value; }));
+  body.querySelector('#imGetTpl').onclick = e => { e.preventDefault(); downloadTemplate(); };
+  foot.querySelector('#imCancel').onclick = () => { closeDialog(); imp = null; };
+  foot.querySelector('#imNext').onclick = renderImportPreview;
+  if (imp.parsed) importShowFile();
+}
+async function importPickFile(f) {
+  const err = document.getElementById('imErr'); err.textContent = '';
+  const parsed = await parseSheetFile(f);
+  if (parsed.error) { err.textContent = parsed.error; imp.parsed = null; document.getElementById('imNext').disabled = true; return; }
+  const res = validateImportRows(parsed, G());
+  if (res.fatal) { err.textContent = res.fatal; imp.parsed = null; document.getElementById('imNext').disabled = true; return; }
+  imp.parsed = parsed; imp.result = res; imp.fileName = f.name;
+  importShowFile();
+  renderImportPreview();
+}
+function importShowFile() {
+  const zone = document.getElementById('imZone'); if (!zone) return;
+  zone.classList.add('has-file');
+  const ok = imp.result.rows.filter(r => r.ok).length;
+  zone.innerHTML = `<svg class="ic" aria-hidden="true"><use href="#ic-file-xls"></use></svg><div style="flex:1;min-width:0"><b>${escH(imp.fileName)}</b><div>${imp.result.rows.length} row${imp.result.rows.length === 1 ? '' : 's'} found · ${ok} valid</div></div><button type="button" class="btn-ghost" id="imReplaceFile">Choose another</button>`;
+  zone.querySelector('#imReplaceFile').onclick = e => { e.stopPropagation(); document.getElementById('imFile').click(); };
+  const next = document.getElementById('imNext'); next.disabled = false; next.title = '';
+}
+function renderImportPreview() {
+  const body = document.getElementById('dBody'), foot = document.getElementById('dFooter');
+  const rows = imp.result.rows, ok = rows.filter(r => r.ok), bad = rows.length - ok.length, useP = G().settings.usePhases;
+  const cols = (useP ? ['Phase'] : []).concat(['Task', 'Owner', 'Status', 'Start', 'End']);
+  body.innerHTML = `
+    <div class="imp-summary">
+      <span class="imp-pill ok">${ok.length} valid</span>
+      ${bad ? `<span class="imp-pill bad">${bad} will be skipped</span>` : ''}
+      <span class="imp-pill info">${imp.mode === 'replace' ? 'Replaces all ' + tasks.length + ' current task' + (tasks.length === 1 ? '' : 's') : 'Added to the ' + tasks.length + ' current task' + (tasks.length === 1 ? '' : 's')}</span>
+      <span style="color:var(--tg-muted);font-size:12px">${escH(imp.fileName)}${imp.parsed.sheet ? ' · sheet “' + escH(imp.parsed.sheet) + '”' : ''}</span>
+    </div>
+    <div class="imp-wrap"><table class="imp-table" aria-label="Import preview"><thead><tr><th>Row</th>${cols.map(c => '<th>' + c + '</th>').join('')}<th>Problem</th></tr></thead><tbody>
+      ${rows.map(r => `<tr class="${r.ok ? 'ok' : 'bad'}"><td class="num">${r.n}</td>${useP ? '<td>' + escH(r.phase) + '</td>' : ''}<td title="${escH(r.task)}">${escH(r.task) || '<i style="color:var(--tg-muted)">empty</i>'}</td><td>${escH(r.owner)}</td><td>${escH(r.status || '')}</td><td>${escH(r.start || '')}</td><td>${escH(r.end || '')}</td><td class="reason">${r.ok ? '' : escH(r.errors.join(' · '))}</td></tr>`).join('')}
+    </tbody></table></div>
+    ${bad ? '<div class="field-hint">Fix the red rows in the file and choose it again, or import the valid rows now and add the rest by hand.</div>' : ''}`;
+  foot.innerHTML = `<div class="dlg-left"><button type="button" class="btn-ghost" id="imBack"><svg class="ic" aria-hidden="true" style="transform:rotate(180deg)"><use href="#ic-caret-right"></use></svg>Back</button></div>
+    <div class="footer-actions"><button type="button" class="cancel-btn" id="imCancel">Cancel</button>
+    <button type="button" class="${imp.mode === 'replace' ? 'danger-btn' : 'save-btn'}" id="imApply" ${ok.length ? '' : 'disabled'}>${imp.mode === 'replace' ? 'Replace with' : 'Import'} ${ok.length} row${ok.length === 1 ? '' : 's'}${bad ? ' (' + bad + ' skipped)' : ''}</button></div>`;
+  foot.querySelector('#imBack').onclick = renderImportPick;
+  foot.querySelector('#imCancel').onclick = () => { closeDialog(); imp = null; };
+  foot.querySelector('#imApply').onclick = applyImport;
+  setTimeout(() => { const b = document.getElementById(ok.length ? 'imApply' : 'imBack'); if (b) b.focus(); }, 20);
+}
+function applyImport() {
+  const g = G(), ok = imp.result.rows.filter(r => r.ok), mode = imp.mode, fileName = imp.fileName;
+  const before = { tasks: deep(g.tasks), settings: deep(g.settings) };
+  const base = Date.now();
+  const newTasks = ok.map((r, i) => ({
+    id: base + i, phase: r.phase, task: r.task, status: r.status, start: r.start, end: r.end, responsible: r.owner, notes: r.notes,
+    color: r.phase && g.settings.phases.indexOf(r.phase) >= 0 ? PALETTE[g.settings.phases.indexOf(r.phase) % PALETTE.length] : PALETTE[(g.settings.phases.length + i) % PALETTE.length]
+  }));
+  ok.forEach(r => { if (r.phase && !g.settings.phases.includes(r.phase)) g.settings.phases.push(r.phase); if (r.owner && !g.settings.owners.includes(r.owner)) g.settings.owners.push(r.owner); });
+  tasks = mode === 'replace' ? newTasks : tasks.concat(newTasks);
+  const persisted = (() => { g.tasks = tasks; touch(); return persistStore(); })();
+  if (!persisted) { g.tasks = before.tasks; g.settings = before.settings; bindActive(); return; }
+  closeDialog(); imp = null;
+  populateFilters(); renderGantt();
+  const msg = (mode === 'replace' ? 'Replaced with ' : 'Imported ') + ok.length + ' task' + (ok.length === 1 ? '' : 's') + ' from “' + fileName + '”';
+  showToast(msg, { duration: mode === 'replace' ? 10000 : 8000, action: { label: 'Undo', fn: () => {
+    g.tasks = before.tasks; g.settings = before.settings; bindActive(); touch(); persistStore(); populateFilters(); renderGantt(); showToast('Import undone — ' + before.tasks.length + ' task' + (before.tasks.length === 1 ? '' : 's') + ' restored');
+  } } });
+}
+
+// ===== SHARE SNAPSHOT via URL hash (#g=<deflate-raw, base64url>) =====
+// Honest semantics: the link carries a frozen copy. The recipient's edits never reach the sender.
+const SHARE_MAX_URL = 8000;   // practical limit for chat apps / email clients; browsers allow far more
+function b64urlEncode(bytes) { let b = ''; for (let i = 0; i < bytes.length; i++) b += String.fromCharCode(bytes[i]); return btoa(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function b64urlDecode(str) { const b = atob(str.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((str.length + 3) % 4)); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+async function deflateRaw(bytes) {
+  if (typeof CompressionStream === 'undefined') throw new Error('This browser cannot create share links (no CompressionStream). Use Export CSV instead.');
+  return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+}
+function snapshotPayload(g, withLogo) {
+  return { v: 1, name: g.name, title: g.title, subtitle: g.subtitle, logo: withLogo ? g.logo : null, madeAt: new Date().toISOString(),
+           settings: { usePhases: g.settings.usePhases, phases: g.settings.phases, owners: g.settings.owners, view: g.settings.view }, tasks: g.tasks };
+}
+async function buildShareLink(g) {
+  const base = location.href.split('#')[0];
+  for (const withLogo of [true, false]) {
+    if (withLogo && !g.logo) continue;
+    const hash = b64urlEncode(await deflateRaw(u8(JSON.stringify(snapshotPayload(g, withLogo)))));
+    const url = base + '#g=' + hash;
+    if (url.length <= SHARE_MAX_URL) return { url, logoDropped: !withLogo && !!g.logo };
+  }
+  return { tooBig: true };
+}
+async function decodeShareHash(hash) {
+  const m = /^#g=([A-Za-z0-9_-]+)$/.exec(hash || ''); if (!m) return null;
+  const json = new TextDecoder().decode(await inflateRaw(b64urlDecode(m[1])));
+  const p = JSON.parse(json);
+  if (!p || p.v !== 1 || !Array.isArray(p.tasks)) throw new Error('bad payload');
+  return p;
+}
+function clearShareHash() { if (location.hash) history.replaceState(null, '', location.pathname + location.search); }
+
+async function openShareDialog() {
+  const g = G();
+  openDialog({ title: 'Share a snapshot', desc: 'A read-only copy of “' + g.name + '” exactly as it is right now.', maxWidth: 560,
+    body: '<div class="field-hint">Preparing the link…</div>', footer: '<span></span><div class="footer-actions"><button type="button" class="cancel-btn" onclick="closeDialog()">Close</button></div>' });
+  let r;
+  try { r = await buildShareLink(g); } catch (e) { r = { error: e.message }; }
+  if (!document.getElementById('dialog-overlay').classList.contains('open')) return;
+  const body = document.getElementById('dBody'), foot = document.getElementById('dFooter');
+  if (r.error || r.tooBig) {
+    body.innerHTML = `<div class="share-note"><svg class="ic" aria-hidden="true"><use href="#ic-warning"></use></svg><div>${r.error ? escH(r.error) : 'This gantt is too large to fit in a link (' + g.tasks.length + ' tasks' + (g.logo ? ' plus a logo' : '') + '). A truncated link would break when opened, so none was made.'}<br>Use <b>Export CSV</b> instead and send the file — the recipient can import it with Import from template.</div></div>`;
+    foot.innerHTML = `<span></span><div class="footer-actions"><button type="button" class="cancel-btn" onclick="closeDialog()">Close</button><button type="button" class="save-btn" onclick="closeDialog(); exportCSV(); showToast('CSV downloaded')"><svg class="ic" aria-hidden="true"><use href="#ic-download-simple"></use></svg> Export CSV</button></div>`;
+    return;
+  }
+  body.innerHTML = `
+    <div class="share-note"><svg class="ic" aria-hidden="true"><use href="#ic-warning"></use></svg><div><b>This is a snapshot, not a shared document.</b> Whoever opens the link sees ${g.tasks.length} task${g.tasks.length === 1 ? '' : 's'} as they are now and can save their own editable copy. Their edits do not come back to you, and your later edits do not reach them.${r.logoDropped ? '<br>The logo was left out to keep the link short.' : ''}</div></div>
+    <div><label class="field-label" for="shareLink">Link · ${r.url.length.toLocaleString()} characters</label><textarea id="shareLink" class="share-link" rows="3" readonly aria-label="Share link">${escH(r.url)}</textarea></div>`;
+  foot.innerHTML = `<span></span><div class="footer-actions"><button type="button" class="cancel-btn" onclick="closeDialog()">Close</button><button type="button" class="save-btn" id="shareCopy"><svg class="ic" aria-hidden="true"><use href="#ic-copy"></use></svg> Copy link</button></div>`;
+  document.getElementById('shareCopy').onclick = async () => {
+    const ta = document.getElementById('shareLink'); let ok = false;
+    try { await navigator.clipboard.writeText(r.url); ok = true; } catch (_) { try { ta.focus(); ta.select(); ok = document.execCommand('copy'); } catch (__) {} }
+    if (ok) { closeDialog(); showToast('Link copied — it opens a read-only copy of this gantt.'); }
+    else { ta.focus(); ta.select(); showToast('Could not copy automatically — the link is selected, press ⌘C / Ctrl+C.'); }
+  };
+  setTimeout(() => document.getElementById('shareCopy').focus(), 20);
+}
+
+// Opening a link: mount the snapshot as a temporary, read-only gantt (never persisted) and show the banner.
+async function openSnapshotFromHash() {
+  if (!/^#g=/.test(location.hash)) return false;
+  let p;
+  try { p = await decodeShareHash(location.hash); }
+  catch (e) { clearShareHash(); showToast(e.message && e.message.includes('CompressionStream') ? e.message : 'This share link is broken or was cut short — ask the sender to send it again or export a CSV.'); return false; }
+  if (!p) return false;
+  const snap = makeGantt({ id: SNAP_ID, name: p.name || 'Shared gantt', title: p.title, subtitle: p.subtitle, logo: p.logo, usePhases: p.settings && p.settings.usePhases !== false,
+    phases: p.settings && p.settings.phases, owners: p.settings && p.settings.owners, view: p.settings && p.settings.view, tasks: p.tasks });
+  store.lastActiveId = store.activeId;
+  store.gantts[SNAP_ID] = snap;
+  document.getElementById('snapText').innerHTML = 'You were sent a snapshot of <b>' + escH(snap.name) + '</b> · ' + snap.tasks.length + ' task' + (snap.tasks.length === 1 ? '' : 's') + (p.madeAt ? ' · made ' + escH(fmtUpdated(p.madeAt)) : '');
+  switchGantt(SNAP_ID, { silent: true });
+  return true;
+}
+function adoptSnapshot() {
+  const snap = store.gantts[SNAP_ID]; if (!snap) return;
+  const g = makeGantt({ name: snap.name, title: snap.title, subtitle: snap.subtitle, logo: snap.logo, usePhases: snap.settings.usePhases,
+    phases: deep(snap.settings.phases), owners: deep(snap.settings.owners), view: snap.settings.view, tasks: snap.tasks });
+  store.gantts[g.id] = g;
+  if (!persistStore()) { delete store.gantts[g.id]; return; }
+  switchGantt(g.id, { silent: true });
+  showToast('Saved as “' + g.name + '” — it’s yours to edit now');
+}
+function leaveSnapshot() {
+  const back = store.lastActiveId && store.gantts[store.lastActiveId] ? store.lastActiveId : ganttList()[0].id;
+  switchGantt(back, { silent: true });
+  showToast('Snapshot closed');
+}
+
+// ===== SETTINGS (logo · Owners & Phases) — edits a working copy, committed on Save, with Undo =====
+let settingsW = null;
+function openSettingsDialog() {
+  const g = G();
+  settingsW = { logo: g.logo, usePhases: g.settings.usePhases, phases: deep(g.settings.phases), owners: deep(g.settings.owners), tasks: deep(g.tasks), dirty: false };
+  openDialog({ title: 'Settings — ' + g.name, desc: 'Logo, phases and owners for this gantt. Changes apply when you save.', maxWidth: 600, onEscape: settingsCancel });
+  renderSettings();
+}
+function renderSettings() {
+  const w = settingsW, body = document.getElementById('dBody'), foot = document.getElementById('dFooter');
+  body.innerHTML = `
+    <div class="settings-section">
+      <label class="field-label">Logo <span style="font-weight:400;text-transform:none;letter-spacing:0">· PNG, SVG or JPG, resized to 240px wide, max 100KB</span></label>
+      ${logoZoneHTML(w.logo, 'st')}
+    </div>
+    <div id="stOP" style="display:flex;flex-direction:column;gap:12px"></div>`;
+  wireLogoZone(body, 'st', !!w.logo, url => { w.logo = url; w.dirty = true; renderSettings(); });
+  const countPhase = v => w.tasks.filter(t => (t.phase || '') === v).length;
+  const countOwner = v => w.tasks.filter(t => (t.responsible || '').trim() === v).length;
+  renderOwnersPhases(body.querySelector('#stOP'), {
+    usePhases: w.usePhases, phases: w.phases, owners: w.owners,
+    canDeletePhase: (v, i, proceed) => deleteWithReassign('phase', v, countPhase(v), w.phases.filter(x => x !== v), proceed),
+    canDeleteOwner: (v, i, proceed) => deleteWithReassign('owner', v, countOwner(v), w.owners.filter(x => x !== v), proceed),
+    onRenamePhase: (o, n) => { w.tasks.forEach(t => { if ((t.phase || '') === o) t.phase = n; }); },
+    onRenameOwner: (o, n) => { w.tasks.forEach(t => { if ((t.responsible || '').trim() === o) t.responsible = n; }); },
+  }, st => { w.dirty = true; });
+  // the panel toggles usePhases on its own state object → mirror it
+  body.querySelector('#opUsePhases').addEventListener('change', function() { w.usePhases = this.checked; });
+  foot.innerHTML = `<span></span><div class="footer-actions"><button type="button" class="cancel-btn" id="stCancel">Cancel</button><button type="button" class="save-btn" id="stSave">Save changes</button></div>`;
+  foot.querySelector('#stCancel').onclick = settingsCancel;
+  foot.querySelector('#stSave').onclick = settingsSave;
+}
+// Deleting a phase/owner that tasks still use: ask where those tasks should go. Returns false (async) or true (nothing assigned).
+function deleteWithReassign(kind, value, count, others, proceed) {
+  if (!count) return true;
+  const w = settingsW, noun = kind === 'phase' ? 'phase' : 'owner';
+  const opts = others.map(o => `<option value="${escH(o)}">${escH(o)}</option>`).join('');
+  confirmDialog({
+    title: 'Remove ' + noun + ' “' + value + '”?',
+    desc: count + ' task' + (count === 1 ? ' is' : 's are') + ' assigned to it. Choose what happens to ' + (count === 1 ? 'it' : 'them') + '.',
+    html: `<div style="display:flex;flex-direction:column;gap:8px">
+      <label class="choice"><input type="radio" name="rsMode" value="move" ${others.length ? 'checked' : 'disabled'}>Move ${count === 1 ? 'it' : 'them'} to
+        <select id="rsTarget" class="field-input" style="padding:5px 10px" ${others.length ? '' : 'disabled'} aria-label="Target ${noun}">${opts || '<option>No other ' + noun + 's</option>'}</select></label>
+      <label class="choice"><input type="radio" name="rsMode" value="none" ${others.length ? '' : 'checked'}>Leave ${count === 1 ? 'it' : 'them'} without ${kind === 'phase' ? 'a phase' : 'an owner'}</label>
+    </div>`,
+    confirmLabel: 'Remove ' + noun,
+    onConfirm: () => {
+      const mode = (document.querySelector('input[name=rsMode]:checked') || {}).value;
+      const target = mode === 'move' ? document.getElementById('rsTarget').value : '';
+      w.tasks.forEach(t => {
+        if (kind === 'phase' && (t.phase || '') === value) t.phase = target;
+        if (kind === 'owner' && (t.responsible || '').trim() === value) t.responsible = target;
+      });
+      w.dirty = true;
+      proceed();
+      showToast(target ? count + ' task' + (count === 1 ? '' : 's') + ' moved to “' + target + '”' : count + ' task' + (count === 1 ? '' : 's') + ' left without ' + (kind === 'phase' ? 'a phase' : 'an owner'));
+    }
+  });
+  return false;
+}
+function settingsCancel() {
+  if (!settingsW || !settingsW.dirty) { closeDialog(); settingsW = null; return; }
+  confirmDialog({ title: 'Discard settings changes?', desc: 'Nothing has been saved yet.', confirmLabel: 'Discard', cancelLabel: 'Keep editing',
+    onConfirm: () => { closeDialog(); settingsW = null; } });
+}
+function settingsSave() {
+  const g = G(), w = settingsW;
+  const before = { logo: g.logo, settings: deep(g.settings), tasks: deep(g.tasks) };
+  g.logo = w.logo; g.settings.usePhases = w.usePhases; g.settings.phases = w.phases; g.settings.owners = w.owners; g.tasks = w.tasks;
+  bindActive(); touch();
+  if (!persistStore()) { g.logo = before.logo; g.settings = before.settings; g.tasks = before.tasks; bindActive(); return; }
+  closeDialog(); settingsW = null;
+  applyHeader(); populateFilters(); renderGantt();
+  const changedTasks = JSON.stringify(before.tasks) !== JSON.stringify(g.tasks);
+  showToast(changedTasks ? 'Settings saved — some tasks were reassigned' : 'Settings saved', { duration: 8000, action: { label: 'Undo', fn: () => {
+    g.logo = before.logo; g.settings = before.settings; g.tasks = before.tasks; bindActive(); touch(); persistStore();
+    applyHeader(); populateFilters(); renderGantt(); showToast('Settings restored');
+  } } });
+}
+
+// ===== RENAME =====
+function openRenameDialog() {
+  const g = G();
+  openDialog({
+    title: 'Rename gantt', desc: 'How this gantt is named in the list and in the header.', maxWidth: 480, focus: 'rnName',
+    body: `
+      <div><label class="field-label" for="rnName">Name in the gantt list <span class="req" aria-hidden="true">*</span></label><input id="rnName" class="field-input" value="${escH(g.name)}" autocomplete="off"></div>
+      <div><label class="field-label" for="rnTitle">Header title <span class="req" aria-hidden="true">*</span></label><input id="rnTitle" class="field-input" value="${escH(g.title || '')}" autocomplete="off"></div>
+      <div><label class="field-label" for="rnSub">Subtitle</label><input id="rnSub" class="field-input" value="${escH(g.subtitle || '')}" autocomplete="off"></div>
+      <div class="field-error" id="rnErr" aria-live="assertive"></div>`,
+    footer: `<span></span><div class="footer-actions"><button type="button" class="cancel-btn" onclick="closeDialog()">Cancel</button><button type="button" class="save-btn" id="rnSave">Save</button></div>`
+  });
+  const save = () => {
+    const name = document.getElementById('rnName').value.trim(), title = document.getElementById('rnTitle').value.trim(), sub = document.getElementById('rnSub').value.trim();
+    if (!name || !title) { document.getElementById('rnErr').textContent = 'Name and header title cannot be empty.'; return; }
+    g.name = name; g.title = title; g.subtitle = sub; touch(); persistStore(); applyHeader(); closeDialog();
+    showToast('Renamed to “' + name + '”');
+  };
+  document.getElementById('rnSave').onclick = save;
+  ['rnName', 'rnTitle', 'rnSub'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } }));
+}
+
+// ===== DUPLICATE =====
+function duplicateGantt() {
+  const src = G();
+  const g = makeGantt({ name: src.name + ' (copy)', title: src.title, subtitle: src.subtitle, logo: src.logo,
+    usePhases: src.settings.usePhases, phases: deep(src.settings.phases), owners: deep(src.settings.owners), view: src.settings.view, tasks: src.tasks });
+  store.gantts[g.id] = g;
+  if (!persistStore()) { delete store.gantts[g.id]; return; }
+  switchGantt(g.id, { silent: true });
+  showToast('Duplicated — you’re now editing “' + g.name + '”');
+}
+
+// ===== DELETE (with 8-second Undo) =====
+function deleteGanttFlow() {
+  const list = ganttList(), g = G();
+  if (list.length <= 1) { showToast('This is your only gantt — create another one before deleting it.'); return; }
+  confirmDialog({
+    title: 'Delete “' + g.name + '”?', desc: 'Removes this gantt and everything in it from this browser.',
+    items: ['Tasks that will be deleted: <b>' + g.tasks.length + '</b>',
+            'Phases / owners: <b>' + g.settings.phases.length + ' / ' + g.settings.owners.length + '</b>' + (g.logo ? ', plus its logo' : ''),
+            'You will have <b>' + (list.length - 1) + '</b> gantt' + (list.length - 1 === 1 ? '' : 's') + ' left. Undo is available for 8 seconds.'],
+    confirmLabel: 'Delete gantt',
+    onConfirm: () => {
+      const idx = list.findIndex(x => x.id === g.id);
+      const next = list[idx - 1] || list[idx + 1];
+      delete store.gantts[g.id];
+      switchGantt(next.id, { silent: true });
+      showToast('Deleted “' + g.name + '”', { duration: 8000, action: { label: 'Undo', fn: () => {
+        store.gantts[g.id] = g; persistStore(); switchGantt(g.id, { silent: true }); showToast('Restored “' + g.name + '”');
+      } } });
+    }
+  });
+}
+
+// ===== GLOBAL KEYBOARD: Escape closes the top-most layer; Tab is trapped inside open dialogs =====
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+function trapTab(e, box) {
+  const f = [...box.querySelectorAll(FOCUSABLE)].filter(el => el.offsetParent !== null);
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  else if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+}
+document.addEventListener('keydown', function(e) {
+  const confirmOpen = document.getElementById('confirm-overlay').classList.contains('open');
+  const dialogOpen  = document.getElementById('dialog-overlay').classList.contains('open');
+  const modalOpen   = document.getElementById('modal-overlay').classList.contains('open');
+  if (e.key === 'Escape') {
+    if (confirmOpen) { e.preventDefault(); closeConfirm(false); return; }
+    if (document.getElementById('appMenu').classList.contains('open')) { closeAppMenu(true); return; }
+    if (document.getElementById('viewMenu').classList.contains('open')) { closeViewMenu(true); return; }
+    if (document.getElementById('ganttList').classList.contains('open')) { closeSwitcher(true); return; }
+    if (dialogOpen) { e.preventDefault(); dialogEscape(); return; }
+    if (modalOpen) { e.preventDefault(); closeModal(); return; }
+  }
+  if (e.key === 'Tab') {
+    if (confirmOpen) trapTab(e, document.getElementById('confirm-box'));
+    else if (dialogOpen) trapTab(e, document.getElementById('dialog-box'));
+    else if (modalOpen) trapTab(e, document.getElementById('modal-box'));
+  }
 });
 
 // Persist
 function save() {
-  localStorage.setItem('gf_tasks_v3', JSON.stringify(tasks));
+  G().tasks = tasks;          // `tasks` may have been reassigned (delete / reset / import)
+  touch();
+  persistStore();
   updateStats();
 }
 
 function resetData() {
-  if (!confirm('Reset all tasks to original data? All changes will be lost.')) return;
-  tasks = JSON.parse(JSON.stringify(INITIAL_TASKS));
-  save();
-  populateFilters();
-  renderGantt();
+  const g = G(), cur = tasks.length, orig = (g.baseline || []).length;
+  confirmDialog({
+    title: 'Reset “' + g.name + '” to original?',
+    desc: 'Restores this gantt to the plan it was created with and discards every change made since.',
+    items: [
+      'Current tasks that will be replaced: <b>' + cur + '</b>',
+      'Tasks after reset: <b>' + orig + '</b> (original plan)',
+      'Edited dates, names, colors and order will be lost. This cannot be undone.'
+    ],
+    confirmLabel: 'Reset ' + cur + ' tasks',
+    onConfirm: () => {
+      tasks = deep(g.baseline || []);
+      save();
+      populateFilters();
+      renderGantt();
+      showToast('“' + g.name + '” reset to its original ' + orig + ' tasks');
+    }
+  });
 }
 
 // Date utilities
@@ -1065,8 +2688,11 @@ function setZoom(z) {
 }
 
 function populateFilters() {
-  const phases = [...new Set(tasks.map(t => t.phase))];
+  const usePh = G().settings.usePhases;
+  const phases = usePh ? uniq([...G().settings.phases, ...tasks.map(t => t.phase)]) : [];
   const sel = document.getElementById('phaseFilter');
+  sel.style.display = usePh ? '' : 'none';
+  if (!usePh) sel.value = 'ALL';
   const dl = document.getElementById('phaseList');
   const cur = sel.value;
   sel.innerHTML = '<option value="ALL">All Phases</option>';
@@ -1084,15 +2710,26 @@ function populateFilters() {
   // owners
   const rsel = document.getElementById('responsibleFilter');
   const rcur = rsel.value;
-  const resps = [...new Set(tasks.map(t => (t.responsible || '').trim()).filter(Boolean))];
+  const resps = uniq([...G().settings.owners, ...tasks.map(t => t.responsible)]);
   rsel.innerHTML = '<option value="ALL">All Owners</option>';
+  const odl = document.getElementById('ownerList'); odl.innerHTML = '';
   resps.forEach(r => {
     const o = document.createElement('option');
     o.value = r; o.textContent = r;
     rsel.appendChild(o);
+    const d = document.createElement('option'); d.value = r; odl.appendChild(d);
   });
   rsel.value = (rcur === 'ALL' || resps.includes(rcur)) ? rcur : 'ALL';
 }
+
+// Phase groups follow the order of settings.phases; phases not in the list keep their first-seen order after it; '' (no phase) last.
+function orderPhases(keys) {
+  const order = G().settings.phases || [];
+  const rank = k => k === '' ? Number.MAX_SAFE_INTEGER : (order.indexOf(k) >= 0 ? order.indexOf(k) : order.length + keys.indexOf(k));
+  return keys.slice().sort((a, b) => rank(a) - rank(b));
+}
+// Phase label shown for tasks that have no phase while phases are on
+const NO_PHASE_LABEL = 'No phase';
 
 // ===== RENDER =====
 function renderGantt() {
@@ -1107,9 +2744,21 @@ function renderGantt() {
     (t.task.toLowerCase().includes(search) || (t.responsible||'').toLowerCase().includes(search) || (t.notes||'').toLowerCase().includes(search))
   );
 
+  if (!tasks.length) {          // empty gantt → invitation, not a blank board
+    VIS = [];
+    board.innerHTML = `<div class="empty-state">
+      <svg class="ic" aria-hidden="true"><use href="#ic-plus-o"></use></svg>
+      <h3>No tasks yet</h3>
+      <p>Add the first task by hand, or fill the Excel template and import the whole list at once.</p>
+      <div class="empty-actions">
+        <button type="button" class="tg-btn" onclick="openModal()"><svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg> Add task</button>
+        <button type="button" class="btn-ghost" onclick="openImportDialog()"><svg class="ic" aria-hidden="true"><use href="#ic-upload-simple"></use></svg>Import from template</button>
+      </div></div>`;
+    return;
+  }
   if (!vis.length) {
     VIS = [];
-    board.innerHTML = '<div style="padding:40px;text-align:center;color:#8c8c9e;font-size:14px;">No tasks match your search / filter.</div>';
+    board.innerHTML = '<div style="padding:40px;text-align:center;color:var(--tg-muted);font-size:14px;">No tasks match your search / filter.</div>';
     return;
   }
 
@@ -1158,16 +2807,17 @@ function renderGantt() {
     return h;
   }
 
-  // Group by phase
+  // Group by phase (or one flat list when phases are switched off for this gantt)
+  const usePh = G().settings.usePhases;
   const groups = {};
-  vis.forEach(t => { if (!groups[t.phase]) groups[t.phase] = []; groups[t.phase].push(t); });
+  vis.forEach(t => { const k = usePh ? (t.phase || '') : ''; if (!groups[k]) groups[k] = []; groups[k].push(t); });
 
   let rowsHTML = '';
-  for (const ph of Object.keys(groups)) {
-    rowsHTML += `
+  for (const ph of orderPhases(Object.keys(groups))) {
+    if (usePh) rowsHTML += `
       <div class="phase-row">
         <div class="phase-label">
-          <span style="font-size:10px">▶</span> ${escH(ph)} <span style="font-weight:400;color:#8c8c9e;">(${groups[ph].length})</span>
+          <svg class="ic" aria-hidden="true"><use href="#ic-caret-right"></use></svg> ${escH(ph || NO_PHASE_LABEL)} <span style="font-weight:400;color:var(--tg-muted);">(${groups[ph].length})</span>
         </div>
         <div style="flex:1;height:28px;"></div>
       </div>`;
@@ -1193,7 +2843,7 @@ function renderGantt() {
                ondragstart="rowDragStart(event,${t.id})" ondragover="rowDragOver(event)"
                ondrop="rowDrop(event)" ondragend="rowDragEnd(event)"
                onclick="openModal(${t.id})">
-            <span class="drag-handle" title="Drag to reorder">⠿</span>
+            <span class="drag-handle" title="Drag to reorder" aria-hidden="true"><svg class="ic"><use href="#ic-dots-six-vertical"></use></svg></span>
             <div class="task-name-col">
               <div class="task-name">${escH(t.task)}</div>
             </div>
@@ -1225,7 +2875,7 @@ function renderGantt() {
     <div style="display:flex;flex-direction:column;width:max-content;min-width:100%;">
       <div class="gantt-header-row">
         <div class="gantt-sidebar-cell">
-          <span>Task / Owner</span><span style="font-weight:400;">Drag ⠿ to reorder</span>
+          <span>Task / Owner</span><span style="font-weight:400;display:flex;align-items:center;gap:4px;">Drag <svg class="ic" aria-hidden="true" style="width:11px;height:11px"><use href="#ic-dots-six-vertical"></use></svg> to reorder</span>
         </div>
         <div class="gantt-timeline-header" style="width:${W}px;position:relative;">
           <div class="gantt-months-row">${monthsHTML}</div>
@@ -1249,7 +2899,7 @@ function escJS(s) {   // safe inside a single-quoted JS string within a double-q
 // ===== DRAG: horizontal = move/resize dates · vertical = reorder =====
 let drag = null;
 function startDrag(e, id, mode) {
-  if (e.button !== 0) return;
+  if (e.button !== 0 || isReadOnly()) return;
   e.preventDefault();
   const bar = document.getElementById('bar-' + id);
   const t = tasks.find(x => x.id === id);
@@ -1378,6 +3028,7 @@ function reorderTask(dragId, targetId, placeAfter) {
 // Native drag-and-drop for the left task list
 let sideDragId = null;
 function rowDragStart(e, id) {
+  if (isReadOnly()) { e.preventDefault(); return; }
   sideDragId = id;
   e.dataTransfer.effectAllowed = 'move';
   try { e.dataTransfer.setData('text/plain', String(id)); } catch (_) {}
@@ -1407,6 +3058,8 @@ function buildPresets() {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'color-preset-btn';
+    b.setAttribute('aria-label', 'Color ' + col);
+    b.title = col;
     b.style.background = col;
     b.onclick = () => {
       document.getElementById('fColor').value = col;
@@ -1421,6 +3074,7 @@ function syncColorStripe(col) {
 }
 
 function openModal(id = null) {
+  if (isReadOnly()) { showToast('This is a read-only snapshot — open an editable copy first (banner above).'); return; }
   const overlay = document.getElementById('modal-overlay');
   const t = id ? tasks.find(x => x.id === id) : null;
 
@@ -1428,7 +3082,10 @@ function openModal(id = null) {
   document.getElementById('mDeleteBtn').style.display = t ? 'flex' : 'none';
   document.getElementById('fId').value = t ? t.id : '';
   document.getElementById('fName').value = t ? t.task : '';
-  document.getElementById('fPhase').value = t ? t.phase : '';
+  const usePh = G().settings.usePhases;
+  document.getElementById('fPhaseWrap').style.display = usePh ? '' : 'none';
+  document.getElementById('fPhase').required = usePh;
+  document.getElementById('fPhase').value = t ? (t.phase || '') : (usePh && G().settings.phases[0] ? G().settings.phases[0] : '');
   document.getElementById('fResponsible').value = t ? (t.responsible||'') : '';
   document.getElementById('fStart').value = t ? t.start : fd(new Date());
   document.getElementById('fEnd').value = t ? t.end : fd(addD(new Date(), 5));
@@ -1438,11 +3095,18 @@ function openModal(id = null) {
   syncColorStripe(col);
   document.getElementById('fNotes').value = t ? (t.notes||'') : '';
 
+  closeAllMenus();
+  openModal._opener = document.activeElement;
   overlay.classList.add('open');
+  setTimeout(() => document.getElementById('fName').focus(), 30);
 }
 
 function closeModal() {
-  document.getElementById('modal-overlay').classList.remove('open');
+  const ov = document.getElementById('modal-overlay');
+  if (!ov.classList.contains('open')) return;
+  ov.classList.remove('open');
+  const op = openModal._opener; openModal._opener = null;
+  if (op && document.body.contains(op) && op !== document.body) { try { op.focus(); } catch (_) {} }
 }
 
 function saveTask(e) {
@@ -1450,7 +3114,7 @@ function saveTask(e) {
   const id = document.getElementById('fId').value;
   const data = {
     task: document.getElementById('fName').value.trim(),
-    phase: document.getElementById('fPhase').value.trim(),
+    phase: G().settings.usePhases ? document.getElementById('fPhase').value.trim() : '',
     responsible: document.getElementById('fResponsible').value.trim(),
     start: document.getElementById('fStart').value,
     end: document.getElementById('fEnd').value,
@@ -1458,6 +3122,9 @@ function saveTask(e) {
     color: document.getElementById('fColor').value,
     notes: document.getElementById('fNotes').value.trim(),
   };
+  { const st = G().settings;   // keep the lists in sync with what people actually type
+    if (data.phase && !st.phases.includes(data.phase)) st.phases.push(data.phase);
+    if (data.responsible && !st.owners.includes(data.responsible)) st.owners.push(data.responsible); }
   let celebrateId = null;
   if (id) {
     const t = tasks.find(x => x.id === +id);
@@ -1494,6 +3161,8 @@ function deleteCurrentTask() {
   closeModal();
 }
 
+function fileSlug(name) { return (String(name || 'Gantt').replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '') || 'Gantt').slice(0, 60); }
+
 // Export CSV
 function exportCSV() {
   const h = ['Phase','Task','Status','Start','End','Responsible','Notes'];
@@ -1501,7 +3170,7 @@ function exportCSV() {
   const blob = new Blob(['\uFEFF'+[h.join(','),...rows].join('\n')], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'Medison_Gantt_' + fd(new Date()) + '.csv';
+  a.download = fileSlug(G().name) + '_' + fd(new Date()) + '.csv';
   a.click();
 }
 
@@ -1531,10 +3200,11 @@ function exportPDF() {
     daysHTML+=`<div class="pd ${we?'we':''}" style="width:${dw}px">${dw>=10?c.getDate():''}</div>`; c=addD(c,1); } }
   function pgrid(){ let h='',c=new Date(minD); for(let i=0;i<totalDays;i++){ h+=`<div class="pg ${isWeekend(c)?'we':''}" style="width:${dw}px"></div>`; c=addD(c,1);} return h; }
 
-  const groups={}; all.forEach(t=>{(groups[t.phase]=groups[t.phase]||[]).push(t);});
+  const usePh=G().settings.usePhases;
+  const groups={}; all.forEach(t=>{const k=usePh?(t.phase||''):''; (groups[k]=groups[k]||[]).push(t);});
   let rows='';
-  for(const ph of Object.keys(groups)){
-    rows+=`<div class="prow phase"><div class="pside phase">${escH(ph)}</div><div class="ptl" style="width:${W}px"></div></div>`;
+  for(const ph of orderPhases(Object.keys(groups))){
+    if(usePh) rows+=`<div class="prow phase"><div class="pside phase">${escH(ph||NO_PHASE_LABEL)}</div><div class="ptl" style="width:${W}px"></div></div>`;
     for(const t of groups[ph]){
       const off=diff(minD,pd(t.start));
       const dur=Math.max(1,diff(pd(t.start),pd(t.end))+1);
@@ -1545,7 +3215,8 @@ function exportPDF() {
     }
   }
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Medison Gantt — ${fd(minD)} → ${fd(maxD)}</title>
+  const gTitle = escH(G().title || G().name), gSub = escH(G().subtitle || '');
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${gTitle} — ${fd(minD)} → ${fd(maxD)}</title>
   <style>
     @page { size: A4 landscape; margin: 10mm; }
     * { box-sizing: border-box; }
@@ -1571,8 +3242,8 @@ function exportPDF() {
     .pbar span { font-size:8px; color:#fff; font-weight:600; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,0.25); }
     .legend { margin-top:10px; font-size:9px; color:#8c8c9e; }
   </style></head><body>
-    <h1>Medison — Gantt Chart</h1>
-    <div class="sub">Discovery &amp; Interactive Map &nbsp;·&nbsp; ${fd(minD)} → ${fd(maxD)} &nbsp;·&nbsp; ${all.length} tasks</div>
+    <h1>${gTitle}</h1>
+    <div class="sub">${gSub ? gSub + ' &nbsp;·&nbsp; ' : ''}${fd(minD)} → ${fd(maxD)} &nbsp;·&nbsp; ${all.length} tasks</div>
     <div class="phdr"><div class="pside">Task / Owner</div><div><div class="pmonths">${monthsHTML}</div><div class="pdays">${daysHTML}</div></div></div>
     ${rows}
     <div class="legend">Shaded columns = weekend (Fri–Sat). Generated ${new Date().toLocaleString('en-GB')}.</div>
@@ -1605,13 +3276,23 @@ function celebrate(taskId) {
   runConfetti(8000);
 }
 
-function showToast(msg) {
+// showToast(msg) — plain notice · showToast(msg, { action:{ label, fn }, duration }) — notice with a button (e.g. Undo)
+function showToast(msg, opts) {
   const el = document.getElementById('celebrate-toast');
-  el.textContent = msg;
+  const action = opts && opts.action;
+  el.textContent = '';
+  const span = document.createElement('span'); span.textContent = msg; el.appendChild(span);
+  el.classList.toggle('with-action', !!action);
+  if (action) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-btn'; b.textContent = action.label;
+    b.onclick = () => { hideToast(); action.fn(); };
+    el.appendChild(b);
+  }
   el.classList.add('show');
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(() => el.classList.remove('show'), 6500);
+  showToast._t = setTimeout(hideToast, (opts && opts.duration) || 6500);
 }
+function hideToast() { const el = document.getElementById('celebrate-toast'); el.classList.remove('show'); clearTimeout(showToast._t); }
 
 let audioCtx = null;
 function playApplause() {
@@ -1647,6 +3328,7 @@ function playApplause() {
 
 let confettiRAF = null;
 function runConfetti(duration) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const canvas = document.getElementById('confetti-canvas');
   const ctx = canvas.getContext('2d');
   const DPR = window.devicePixelRatio || 1;
@@ -1721,10 +3403,32 @@ function showMeta(ev, owner, dates) {
 }
 function hideMeta() { metaTip.style.display = 'none'; }
 
+// ===== STAT-CHIP HOVER → highlight matching tasks (Total = all) =====
+let hlStatus = null;
+function highlightStatus(st) {
+  hlStatus = st;
+  document.querySelectorAll('.task-row[data-id]').forEach(row => {
+    const t = tasks.find(x => x.id === +row.dataset.id);
+    const match = !st || st === 'total' || (t && t.status === st);
+    row.classList.toggle('hl-dim', !!st && !match);
+    const bar = row.querySelector('.task-bar');
+    if (bar) bar.classList.toggle('hl-match', !!st && match);   // toggling off cancels a running shine; on restarts it
+  });
+}
+document.querySelectorAll('.stat-chip[data-status]').forEach(chip => {
+  chip.addEventListener('mouseenter', () => highlightStatus(chip.dataset.status));
+  chip.addEventListener('mouseleave', () => highlightStatus(null));
+});
+
+store = loadStore();
+bindActive();
+applyHeader();
 syncViewMenu();
 populateFilters();
 updateStats();
 renderGantt();
+openSnapshotFromHash();
+window.addEventListener('hashchange', () => { if (/^#g=/.test(location.hash)) openSnapshotFromHash(); });
 
 </script>
 </body>
