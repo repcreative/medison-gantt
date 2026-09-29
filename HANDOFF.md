@@ -14,20 +14,11 @@
 | אתר חי | https://repcreative.github.io/medison-gantt/ |
 | ריפו | `repcreative/medison-gantt` — **ציבורי** |
 | אירוח | GitHub Pages, ענף `main`, שורש הריפו |
-| קובץ ראשי | `gantt_app.html` — 3,639 שורות, ~239KB |
-| עותק מוגש | `index.html` — **תוכן זהה, אבל שני קבצים נפרדים.** ראה אזהרה למטה. |
+| קובץ יחיד | `index.html` — 3,639 שורות, ~239KB. זה מה ש-Pages מגיש בשורש. |
 
-### ⚠ שני הקבצים כבר לא מקושרים
+### `gantt_app.html` הוסר
 
-במקור `index.html` היה hard-link ל-`gantt_app.html` — אותו קובץ בשני שמות. **git checkout שובר את זה**, וזה מה שקרה. היום הם שני קבצים עצמאיים עם תוכן זהה במקרה.
-
-**כל עריכה חייבת להיכנס לשניהם, אחרת האתר החי והקובץ המקומי יתפצלו בשקט.** אחרי עריכה:
-
-```bash
-cd "/Users/haimrep/medison gantt" && cp gantt_app.html index.html && diff -q gantt_app.html index.html
-```
-
-שווה לשקול למחוק את `gantt_app.html` ולהשאיר רק את `index.html` — הכפילות הזו לא קונה כלום.
+עד 2026-09-29 היה בריפו גם `gantt_app.html` — במקור hard-link ל-`index.html`, אבל git checkout שבר את הקישור והם הפכו לשני קבצים נפרדים עם תוכן זהה במקרה. כדי שעריכה לא תיכנס רק לאחד מהם ותפצל את האתר החי בשקט, `gantt_app.html` נמחק. **יש רק `index.html`.** קישור ישיר ל-`/gantt_app.html` מחזיר 404.
 
 ---
 
@@ -92,7 +83,7 @@ cd "/Users/haimrep/medison gantt" && cp gantt_app.html index.html && diff -q gan
 
 ### אירועים שכדאי לדעת עליהם
 
-**2026-09-02 — הקובץ אופס בטעות.** סקריפט Python נכשל בכתיבה והשאיר את `gantt_app.html` ב-0 בתים. שוחזר מלוג הסשן והותאם בדיוק — 47,728 בתים, 1,192 שורות, זהה למקור.
+**2026-09-02 — הקובץ אופס בטעות.** סקריפט Python נכשל בכתיבה והשאיר את `gantt_app.html` (היום `index.html`) ב-0 בתים. שוחזר מלוג הסשן והותאם בדיוק — 47,728 בתים, 1,192 שורות, זהה למקור.
 *לקח: לכתוב לקובץ זמני ורק אז להחליף.*
 
 **2026-09-02 — הריפו נוצר כפרטי, ו-Pages נכשל** (`HTTP 422 — Your current plan does not support GitHub Pages for this repository`). החשבון Free, ו-Pages מריפו פרטי דורש Pro/Team. לפי החלטת המשתמש הריפו הוחזר לציבורי ו-Pages עלה.
@@ -119,7 +110,7 @@ cd "/Users/haimrep/medison gantt" && python3 -m http.server 8899
 ```
 
 ```bash
-cd "/Users/haimrep/medison gantt" && cp gantt_app.html index.html && git add -A && git commit -m "…" && git push
+cd "/Users/haimrep/medison gantt" && git add -A && git commit -m "…" && git push
 ```
 
 העמוד מתעדכן תוך ~דקה.
@@ -127,7 +118,7 @@ cd "/Users/haimrep/medison gantt" && cp gantt_app.html index.html && git add -A 
 **אזהרות:**
 - הריפו ציבורי — לבדוק מה נדחף.
 - אל תוסיף תלות ב-CDN; הקובץ צריך לעבוד אופליין.
-- `gantt_app.html` ו-`index.html` כבר לא מקושרים — לסנכרן ידנית.
+- יש קובץ אחד בלבד, `index.html`. אל תיצור עותק בשם אחר.
 
 ---
 

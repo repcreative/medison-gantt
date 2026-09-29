@@ -11,8 +11,6 @@ A single self-contained page (`index.html`) — no build step, no dependencies t
 
 Edits are stored in the visitor's own browser (localStorage) — `↺` resets to the original plan.
 
-> `index.html` and `gantt_app.html` are the same file (hard-linked locally) — edit either one.
-
 ## Local preview
 
 ```bash
