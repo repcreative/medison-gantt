@@ -9,7 +9,11 @@ A single self-contained page (`index.html`) — no build step, no dependencies t
 * Hover the small **i** at the end of a task title for owner + dates.
 * Days / Weeks / Months zoom, search, phase filter, CSV export.
 
-Edits are stored in the visitor's own browser (localStorage) — `↺` resets to the original plan.
+Everyone sees one shared version, read from `data.json` in the public repo
+[`repcreative/medison-gantt-data`](https://github.com/repcreative/medison-gantt-data).
+Editing is locked: **ערוך את הגאנט** asks for the edit password and unlocks editing for one hour;
+changes are published for everyone within seconds. See `HANDOFF.md` → *נתונים משותפים ונעילת עריכה*
+for how it works, first-time setup, and what the lock does and does not protect.
 
 ## Local preview
 

@@ -870,6 +870,20 @@
     .btn-ghost:hover { background: #e8ecf5; }
     .btn-ghost[disabled], .btn-ghost[aria-disabled="true"] { opacity: 0.5; cursor: default; }
     .btn-ghost .ic { width: 13px; height: 13px; }
+    .lock-btn {
+      background: #f4f6fa; border: 1px solid var(--tg-border); border-radius: 20px;
+      padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 600; color: var(--tg-text);
+      cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.15s; white-space: nowrap;
+    }
+    .lock-btn:hover { background: #e8ecf5; }
+    .lock-btn .ic { width: 15px; height: 15px; }
+    .lock-btn.unlocked { background: #eaf6ef; border-color: #bfe5cf; color: #1f6e44; }
+    .lock-btn.unlocked:hover { background: #dcf0e4; }
+    .lock-btn[disabled] { opacity: 0.6; cursor: default; }
+    .save-state { font-size: 12px; color: var(--tg-muted); white-space: nowrap; }
+    .save-state.ok { color: #1f6e44; }
+    .save-state.bad { color: var(--tg-danger); cursor: pointer; text-decoration: underline; }
+    .lock-steps { margin: 4px 0 8px; padding-inline-start: 18px; font-size: 12.5px; line-height: 1.7; }
     .save-btn[disabled] { opacity: 0.45; cursor: default; }
     .req { color: var(--tg-danger); }
     .field-hint { font-size: 11px; color: var(--tg-muted); margin-top: 4px; }
@@ -1090,6 +1104,8 @@
   <symbol id="ic-check-circle-o" viewBox="0 0 256 256"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></symbol>
   <symbol id="ic-users-o" viewBox="0 0 256 256"><path d="M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z"/></symbol>
   <symbol id="ic-chat-circle-o" viewBox="0 0 256 256"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z"/></symbol>
+  <symbol id="ic-lock" viewBox="0 0 256 256"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Zm-68-56a12,12,0,1,1-12-12A12,12,0,0,1,140,152Z"/></symbol>
+  <symbol id="ic-lock-open" viewBox="0 0 256 256"><path d="M208,80H96V56a32,32,0,0,1,32-32c15.37,0,29.2,11,32.16,25.59a8,8,0,0,0,15.68-3.18C171.32,24.15,151.2,8,128,8A48.05,48.05,0,0,0,80,56V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80Zm0,128H48V96H208V208Zm-68-56a12,12,0,1,1-12-12A12,12,0,0,1,140,152Z"/></symbol>
 </svg>
 
 <div id="app">
@@ -1129,7 +1145,10 @@
         <div class="app-menu gantt-list" id="ganttList" role="menu" aria-labelledby="switchBtn" onkeydown="switcherKey(event)"></div>
       </div>
     </div>
-    <div class="header-right"></div>
+    <div class="header-right">
+      <span class="save-state" id="saveState" role="status" aria-live="polite" dir="rtl" style="display:none"></span>
+      <button type="button" class="lock-btn" id="lockBtn" onclick="lockBtnClick()"><svg class="ic" aria-hidden="true"><use href="#ic-lock"></use></svg><span id="lockLabel" dir="rtl">ערוך את הגאנט</span></button>
+    </div>
   </div>
 
   <!-- ===== STATS + CONTROLS (single row) ===== -->
@@ -1451,17 +1470,24 @@ function makeGantt(o) {
 function readJSON(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) { return null; } }
 
 const SNAP_ID = 'snapshot';
-function isReadOnly() { return store && store.activeId === SNAP_ID; }
-function persistStore() {
+function isReadOnly() { return !!store && (store.activeId === SNAP_ID || isLocked()); }   // snapshot, or shared copy without the edit password
+// Local cache (and, before the shared copy is set up, the only storage).
+function writeCache() {
   try {
     const out = { version: store.version, activeId: store.activeId === SNAP_ID ? (store.lastActiveId || Object.keys(store.gantts).find(k => k !== SNAP_ID)) : store.activeId, gantts: {} };
     for (const [k, v] of Object.entries(store.gantts)) if (k !== SNAP_ID) out.gantts[k] = v;
     localStorage.setItem(STORE_KEY, JSON.stringify(out)); return true;
   }
-  catch (e) {
-    showToast('Could not save — browser storage is full. Export CSV to keep a copy, then delete an unused gantt.');
-    return false;
+  catch (e) { return false; }
+}
+function persistStore() {
+  const cached = writeCache();
+  if (isShared()) {                        // the shared copy on GitHub is the real storage
+    if (isUnlocked()) markDirty();         // viewers only keep their own view settings, locally
+    return true;
   }
+  if (!cached) showToast('Could not save — browser storage is full. Export CSV to keep a copy, then delete an unused gantt.');
+  return cached;
 }
 
 // First run: build gs_v1 from the legacy single-gantt keys. gf_tasks_v3 / gf_view_v1 are NOT removed (kept as a backup).
@@ -1500,6 +1526,357 @@ function touch() { G().updatedAt = new Date().toISOString(); }
 
 function saveView() { G().settings.view = view; persistStore(); }
 
+// =====================================================================
+// SHARED DATA + EDIT LOCK
+// The shared gantts live as data.json in a separate public repo (REMOTE.repo). Everyone reads it.
+// Writing needs a GitHub token with Contents: write on that repo only; the token is stored inside
+// data.json encrypted with the edit password (PBKDF2 → AES-GCM), so the password itself is never stored.
+// The one-hour lock is a convenience, not a security boundary: whoever knows the password can edit.
+// A separate repo keeps a leaked password from ever reaching the site's code.
+// =====================================================================
+const REMOTE = { owner: 'repcreative', repo: 'medison-gantt-data', path: 'data.json' };
+const EDIT_TTL_MS = 60 * 60 * 1000, EDIT_WARN_MS = 5 * 60 * 1000, PUBLISH_DELAY_MS = 2500, POLL_MS = 90 * 1000, RETRY_MS = 15000;
+const KDF_ITER = 600000, MIN_PASSWORD = 12;
+const SHARED_META_KEY = 'gs_shared_v1', EDIT_SESSION_KEY = 'gs_edit_v1', LOCAL_BACKUP_KEY = 'gs_v1_before_shared';
+const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
+// state: 'checking' (first fetch pending) | 'shared' | 'local' (never set up → legacy per-browser editing) | 'offline'
+const remote = { state: 'checking', known: false, sha: null, lock: null, lastJSON: null };
+const edit = { token: null, until: 0, warned: false };
+const pub = { dirty: false, busy: false, gen: 0, timer: null, error: '' };   // error: '' | 'net' | 'conflict' | 'auth'
+
+function readShared() { try { return JSON.parse(localStorage.getItem(SHARED_META_KEY) || 'null'); } catch (_) { return null; } }
+function writeShared() { try { localStorage.setItem(SHARED_META_KEY, JSON.stringify({ shared: true, sha: remote.sha, at: new Date().toISOString() })); } catch (_) {} }
+function isShared() { return remote.state === 'shared' || (remote.state !== 'local' && remote.known); }
+function isUnlocked() { return !!edit.token && Date.now() < edit.until; }
+function isLocked() { return (remote.state === 'checking' || isShared()) && !isUnlocked(); }
+const LOCKED_MSG = 'הגאנט נעול לעריכה — לחצו על "ערוך את הגאנט" למעלה והקלידו את הסיסמה.';
+function roMsg() { return isLocked() ? LOCKED_MSG : 'This is a read-only snapshot — open an editable copy first (banner above).'; }
+function blockEdit() { if (!isReadOnly()) return false; showToast(roMsg()); return true; }
+function blockCreate() { if (!isLocked()) return false; showToast(LOCKED_MSG); return true; }
+
+// ---- encoding / crypto ----
+function b64FromBytes(bytes) { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
+function bytesFromB64(b64) { const s = atob(String(b64).replace(/\s/g, '')); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+async function passwordKey(pw, salt, iter) {
+  const base = await crypto.subtle.importKey('raw', u8(pw.normalize('NFC')), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function sealToken(token, pw) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await passwordKey(pw, salt, KDF_ITER), u8(token)));
+  return { v: 1, kdf: 'PBKDF2-SHA256', iter: KDF_ITER, salt: b64FromBytes(salt), iv: b64FromBytes(iv), ct: b64FromBytes(ct) };
+}
+async function openToken(lock, pw) {   // → token string, or null for a wrong password
+  try {
+    const key = await passwordKey(pw, bytesFromB64(lock.salt), lock.iter || KDF_ITER);
+    return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytesFromB64(lock.iv) }, key, bytesFromB64(lock.ct)));
+  } catch (_) { return null; }
+}
+
+// ---- GitHub API ----
+function gh(p, o) {
+  o = o || {};
+  const headers = { Accept: 'application/vnd.github+json' };
+  if (o.token) headers.Authorization = 'Bearer ' + o.token;
+  if (o.body) headers['Content-Type'] = 'application/json';
+  // GET revalidates with the ETag, so an unchanged file costs a 304 instead of a rate-limited request
+  return fetch('https://api.github.com/repos/' + REMOTE.owner + '/' + REMOTE.repo + p,
+    { method: o.method || 'GET', headers, body: o.body ? JSON.stringify(o.body) : undefined, cache: o.method ? 'no-store' : 'no-cache' });
+}
+function httpError(r) { const e = new Error(r ? 'HTTP ' + r.status : 'network'); e.status = r ? r.status : 0; return e; }
+// → { data, sha } | { missing: true }. Throws (err.status) when GitHub can't be reached or refuses the token.
+async function fetchShared(token) {
+  let r = null;
+  try { r = await gh('/contents/' + REMOTE.path, { token }); } catch (_) {}
+  if (r && r.status === 404) return { missing: true };
+  if (r && r.ok) {
+    const j = await r.json();
+    let text = j.content ? new TextDecoder().decode(bytesFromB64(j.content)) : '';
+    if (!text && j.sha) {   // files over 1MB come back without inline content
+      const b = await gh('/git/blobs/' + j.sha, { token }); if (!b.ok) throw httpError(b);
+      text = new TextDecoder().decode(bytesFromB64((await b.json()).content));
+    }
+    return { data: JSON.parse(text), sha: j.sha };
+  }
+  if (token) throw httpError(r);   // editors need the current sha, so no stale fallback for them
+  // anonymous API limit is 60 requests / hour per IP → fall back to the raw file (can be ~5 minutes behind)
+  let raw = null;
+  try { raw = await fetch('https://raw.githubusercontent.com/' + REMOTE.owner + '/' + REMOTE.repo + '/HEAD/' + REMOTE.path + '?t=' + Date.now(), { cache: 'no-store' }); } catch (_) {}
+  if (raw && raw.status === 404) return { missing: true };
+  if (!raw || !raw.ok) throw httpError(raw || r);
+  return { data: await raw.json(), sha: null };
+}
+function sharedGantts() { const o = {}; for (const [k, v] of Object.entries(store.gantts)) if (k !== SNAP_ID) o[k] = v; return o; }
+async function putShared(token, message) {   // → { ok, status, limited }
+  const payload = { version: 1, updatedAt: new Date().toISOString(), lock: remote.lock, gantts: sharedGantts() };
+  const json = JSON.stringify(payload.gantts);
+  let r = null;
+  try { r = await gh('/contents/' + REMOTE.path, { method: 'PUT', token, body: { message, content: b64FromBytes(u8(JSON.stringify(payload, null, 1))), sha: remote.sha || undefined } }); } catch (_) {}
+  if (r && r.ok) { const j = await r.json(); remote.sha = j.content.sha; remote.lastJSON = json; writeShared(); return { ok: true, status: r.status }; }
+  return { ok: false, status: r ? r.status : 0, limited: !!r && r.headers.get('x-ratelimit-remaining') === '0' };
+}
+
+// ---- applying the shared copy ----
+function normalizeGantt(g) {
+  g.settings = g.settings || {}; g.settings.view = Object.assign({}, DEFAULT_VIEW, g.settings.view || {});
+  g.settings.usePhases = g.settings.usePhases !== false;
+  g.settings.phases = g.settings.phases || uniq((g.tasks || []).map(x => x.phase));
+  g.settings.owners = g.settings.owners || uniq((g.tasks || []).map(x => x.responsible));
+  g.tasks = g.tasks || []; g.baseline = g.baseline || deep(g.tasks);
+  return g;
+}
+function busyUI() {
+  return !!drag || sideDragId != null || ['modal-overlay', 'dialog-overlay', 'confirm-overlay'].some(id => document.getElementById(id).classList.contains('open'));
+}
+function applyShared(data, sha) {
+  const gantts = {};
+  for (const [k, g] of Object.entries((data && data.gantts) || {})) if (k !== SNAP_ID && g) gantts[k] = normalizeGantt(g);
+  if (!Object.keys(gantts).length) return false;
+  // The first time this browser sees the shared copy, keep whatever it had on its own (it is about to be replaced).
+  if (!readShared()) { try { const mine = localStorage.getItem(STORE_KEY); if (mine && !localStorage.getItem(LOCAL_BACKUP_KEY)) localStorage.setItem(LOCAL_BACKUP_KEY, mine); } catch (_) {} }
+  if (sha) remote.sha = sha;
+  remote.lock = data.lock || null; remote.state = 'shared'; remote.known = true; remote.lastJSON = JSON.stringify(gantts);
+  const snap = store.gantts[SNAP_ID];
+  store.gantts = gantts; if (snap) store.gantts[SNAP_ID] = snap;
+  if (store.lastActiveId && !gantts[store.lastActiveId]) store.lastActiveId = null;
+  if (!store.gantts[store.activeId]) store.activeId = ganttList()[0].id;
+  writeCache(); writeShared();
+  bindActive(); applyHeader(); syncViewMenu(); populateFilters(); updateStats(); renderGantt(); applyEditUI();
+  return true;
+}
+async function refreshShared(reason) {
+  if (pub.dirty || pub.busy || (reason !== 'init' && busyUI())) return;
+  let res;
+  try { res = await fetchShared(isUnlocked() ? edit.token : null); }
+  catch (e) {
+    if (isUnlocked() && e.status === 401) { keyRejected(); return; }
+    if (remote.state === 'checking') { remote.state = remote.known ? 'offline' : 'local'; applyEditUI(); }
+    return;
+  }
+  if (pub.dirty || pub.busy) return;   // the user edited while we were fetching; their save decides
+  if (res.missing) { remote.state = 'local'; remote.known = false; try { localStorage.removeItem(SHARED_META_KEY); } catch (_) {} applyEditUI(); return; }
+  const first = remote.state !== 'shared';
+  const changed = res.sha ? res.sha !== remote.sha : JSON.stringify(res.data.gantts) !== remote.lastJSON;
+  if (first || changed) {
+    if (!first && busyUI()) return;
+    applyShared(res.data, res.sha);
+    if (!first) showToast('הגאנט עודכן — נטענה הגרסה האחרונה');
+  }
+  applyEditUI();
+}
+
+// ---- publishing ----
+function markDirty() {
+  if (JSON.stringify(sharedGantts()) === remote.lastJSON) return;   // e.g. only switched gantts
+  pub.dirty = true; pub.gen++; if (pub.error !== 'conflict') pub.error = '';
+  clearTimeout(pub.timer); pub.timer = setTimeout(publishNow, PUBLISH_DELAY_MS);
+  setSaveState();
+}
+async function publishNow() {
+  clearTimeout(pub.timer);
+  if (!pub.dirty || !edit.token || pub.error === 'conflict' || pub.error === 'auth') return pub.dirty ? false : true;
+  if (pub.busy) { pub.timer = setTimeout(publishNow, 800); return false; }
+  pub.busy = true; setSaveState();
+  const gen = pub.gen;
+  const r = await putShared(edit.token, 'Update gantt data — ' + (G() ? G().name : ''));
+  pub.busy = false;
+  if (r.ok) {
+    pub.error = '';
+    if (gen === pub.gen) pub.dirty = false; else pub.timer = setTimeout(publishNow, PUBLISH_DELAY_MS);
+    setSaveState(); return !pub.dirty;
+  }
+  if (r.status === 409 || r.status === 422) { pub.error = 'conflict'; setSaveState(); openConflictDialog(); return false; }
+  if (!r.limited && (r.status === 401 || r.status === 403 || r.status === 404)) { pub.error = 'auth'; setSaveState(); keyRejected(); return false; }
+  pub.error = 'net'; setSaveState(); pub.timer = setTimeout(publishNow, RETRY_MS); return false;
+}
+function keyRejected() {
+  stopEditing();
+  showToast('GitHub דחה את מפתח העריכה (פג תוקף או בוטל). ' + (pub.dirty ? 'השינויים האחרונים לא פורסמו. ' : '') + 'צריך להגדיר סיסמה מחדש: "ערוך את הגאנט" ← "הגדרת סיסמה חדשה".', { duration: 15000 });
+}
+async function openConflictDialog() {
+  let latest = null;
+  try { latest = await fetchShared(edit.token); } catch (_) {}
+  if (!latest || latest.missing) { pub.error = 'net'; setSaveState(); pub.timer = setTimeout(publishNow, RETRY_MS); return; }
+  openDialog({ title: 'מישהו אחר שמר שינויים בזמן שערכת', dir: 'rtl', maxWidth: 520,
+    desc: 'הגרסה המשותפת השתנתה אחרי שהתחלת. צריך לבחור איזו גרסה נשארת.',
+    body: '<div class="share-note"><svg class="ic" aria-hidden="true"><use href="#ic-warning"></use></svg><div>השינויים שלך מאז השמירה האחרונה עדיין לא פורסמו. <b>טעינת הגרסה שלהם</b> מבטלת אותם. <b>פרסום הגרסה שלך</b> דורס את מה שהם שמרו.</div></div>',
+    footer: '<span></span><div class="footer-actions"><button type="button" class="cancel-btn" id="cfTheirs">טען את הגרסה שלהם</button><button type="button" class="danger-btn" id="cfMine">פרסם את הגרסה שלי</button></div>' });
+  document.getElementById('cfTheirs').onclick = () => { closeDialog(); pub.dirty = false; pub.error = ''; applyShared(latest.data, latest.sha); showToast('נטענה הגרסה המשותפת האחרונה'); };
+  document.getElementById('cfMine').onclick = () => { closeDialog(); remote.sha = latest.sha; pub.error = ''; publishNow(); };
+}
+
+// ---- lock / unlock ----
+function startEditing(token, until) {
+  edit.token = token; edit.until = until; edit.warned = until - Date.now() <= EDIT_WARN_MS;
+  try { sessionStorage.setItem(EDIT_SESSION_KEY, JSON.stringify({ token, until })); } catch (_) {}
+  applyEditUI();
+}
+function stopEditing() {
+  edit.token = null; edit.until = 0;
+  try { sessionStorage.removeItem(EDIT_SESSION_KEY); } catch (_) {}
+  if (document.getElementById('modal-overlay').classList.contains('open')) closeModal();
+  if (document.getElementById('ctx-menu').classList.contains('open')) closeTaskMenu(false);
+  if (store.activeId !== SNAP_ID && (wiz || imp || settingsW)) { closeDialog(); wiz = null; imp = null; settingsW = null; }
+  applyEditUI();
+}
+async function lockEditing(reason) {
+  if (pub.dirty && !(await publishNow())) {
+    showToast('העריכה ננעלה, אבל השינויים האחרונים לא פורסמו לכולם. הם נשארו רק בדפדפן הזה, עד לרענון.', { duration: 12000 });
+  } else showToast(reason === 'expired' ? 'עברה שעה — העריכה ננעלה. כל השינויים פורסמו.' : 'העריכה ננעלה. כל השינויים פורסמו.');
+  stopEditing();
+}
+function lockTick() {
+  if (!edit.token) return;
+  if (Date.now() >= edit.until) { lockEditing('expired'); return; }
+  if (!edit.warned && edit.until - Date.now() <= EDIT_WARN_MS) { edit.warned = true; showToast('העריכה תינעל בעוד 5 דקות. אפשר לפתוח שוב עם הסיסמה.'); }
+  updateLockUI();
+}
+function lockBtnClick() {
+  if (isUnlocked()) { lockEditing(); return; }
+  if (remote.state === 'checking') { showToast('רגע, טוען את הגרסה המשותפת…'); return; }
+  if (remote.state === 'offline') { showToast('אין חיבור ל-GitHub כרגע, אז אי אפשר לפתוח עריכה. מוצגת הגרסה האחרונה שנטענה.'); return; }
+  if (remote.state === 'local' || !remote.lock) { openSetupDialog(); return; }
+  openUnlockDialog();
+}
+function openUnlockDialog() {
+  openDialog({ title: 'ערוך את הגאנט', dir: 'rtl', maxWidth: 440, focus: 'ulPw',
+    desc: 'הקלידו את סיסמת העריכה. העריכה תינעל שוב אוטומטית אחרי שעה.',
+    body: `<form id="ulForm" autocomplete="on" onsubmit="return false">
+        <input type="text" name="username" value="medison-gantt" autocomplete="username" hidden>
+        <label class="field-label" for="ulPw">סיסמה</label>
+        <input type="password" id="ulPw" class="field-input" autocomplete="current-password" dir="ltr">
+        <div class="field-error" id="ulErr" aria-live="assertive"></div>
+        <div class="field-hint">כל שינוי נשמר ומתפרסם לכל מי שפותח את הגאנט, תוך כמה שניות. <a href="#" id="ulSetup">הגדרת סיסמה חדשה</a></div>
+      </form>`,
+    footer: '<span></span><div class="footer-actions"><button type="button" class="cancel-btn" onclick="closeDialog()">ביטול</button><button type="button" class="save-btn" id="ulGo">פתח לעריכה</button></div>' });
+  document.getElementById('ulGo').onclick = unlockSubmit;
+  document.getElementById('ulPw').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); unlockSubmit(); } });
+  document.getElementById('ulSetup').onclick = e => { e.preventDefault(); openSetupDialog(); };
+}
+async function unlockSubmit() {
+  const pwEl = document.getElementById('ulPw'), err = document.getElementById('ulErr'), btn = document.getElementById('ulGo');
+  if (!pwEl || btn.disabled) return;
+  err.textContent = '';
+  if (!pwEl.value) { err.textContent = 'הקלידו סיסמה.'; pwEl.focus(); return; }
+  btn.disabled = true; btn.textContent = 'בודק…';
+  const done = msg => { btn.disabled = false; btn.textContent = 'פתח לעריכה'; if (msg) { err.textContent = msg; pwEl.focus(); pwEl.select(); } };
+  const token = await openToken(remote.lock, pwEl.value);
+  if (!token) { done('סיסמה שגויה.'); return; }
+  let latest;
+  try { latest = await fetchShared(token); }
+  catch (e) { done(e.status === 401 ? 'הסיסמה נכונה, אבל GitHub דחה את מפתח העריכה (פג תוקף או בוטל). צריך להגדיר סיסמה חדשה.' : 'אין חיבור ל-GitHub כרגע. נסו שוב בעוד רגע.'); return; }
+  if (latest.data) applyShared(latest.data, latest.sha);
+  startEditing(token, Date.now() + EDIT_TTL_MS);
+  closeDialog();
+  showToast('העריכה פתוחה לשעה. כל שינוי מתפרסם לכולם אוטומטית.');
+}
+function openSetupDialog() {
+  const first = remote.state !== 'shared', n = ganttList().length;
+  openDialog({ title: first ? 'הגדרת נעילת עריכה' : 'הגדרת סיסמה חדשה', dir: 'rtl', maxWidth: 560, focus: 'stToken',
+    desc: 'פעם אחת: מחברים מפתח עריכה של GitHub ובוחרים סיסמה. אחר כך כל מי שמקליד את הסיסמה יכול לערוך.',
+    body: `<form onsubmit="return false" style="display:flex;flex-direction:column;gap:12px">
+      <input type="text" name="username" value="medison-gantt" autocomplete="username" hidden>
+      <div class="share-note"><svg class="ic" aria-hidden="true"><use href="#ic-warning"></use></svg><div>
+        <b>הסיסמה לא נשמרת בשום מקום.</b> בריפו נשמר רק מפתח העריכה, מוצפן בסיסמה. שמרו אותה במנהל סיסמאות, והעבירו אותה לעורכים דרכו או בעל-פה — לא בצ'אט ולא במייל.
+        ${first ? `<br>${n} הגאנטים שבדפדפן הזה יהפכו לגרסה המשותפת שכולם רואים.` : '<br>הגאנטים המשותפים נשארים כמו שהם. רק המפתח והסיסמה מתחלפים; הסיסמה הקודמת תפסיק לעבוד.'}</div></div>
+      <div><label class="field-label" for="stToken">מפתח עריכה של GitHub (token)</label>
+        <ol class="lock-steps">
+          <li>בחשבון <b>${REMOTE.owner}</b>, פתחו <a href="${TOKEN_URL}" target="_blank" rel="noopener">יצירת fine-grained token</a>.</li>
+          <li>Repository access ← <b>Only select repositories</b> ← <b dir="ltr">${REMOTE.repo}</b> בלבד.</li>
+          <li>Permissions ← Repository permissions ← <b>Contents: Read and write</b>. שום הרשאה אחרת.</li>
+          <li>Expiration: עד שנה. כשהוא פג, חוזרים לכאן ומגדירים חדש.</li>
+        </ol>
+        <input type="password" id="stToken" class="field-input" dir="ltr" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></div>
+      <div><label class="field-label" for="stPw">סיסמת עריכה</label>
+        <input type="password" id="stPw" class="field-input" dir="ltr" autocomplete="new-password">
+        <div class="field-hint">לפחות ${MIN_PASSWORD} תווים. עדיף 4–5 מילים אקראיות. המפתח המוצפן נמצא בריפו ציבורי, אז סיסמה קצרה אפשר לפצח.</div></div>
+      <div><label class="field-label" for="stPw2">הקלידו שוב</label>
+        <input type="password" id="stPw2" class="field-input" dir="ltr" autocomplete="new-password"></div>
+      <div class="field-error" id="stErr" aria-live="assertive"></div>
+    </form>`,
+    footer: '<span></span><div class="footer-actions"><button type="button" class="cancel-btn" onclick="closeDialog()">ביטול</button><button type="button" class="save-btn" id="stGo">שמור והתחל לערוך</button></div>' });
+  document.getElementById('stGo').onclick = setupSubmit;
+}
+async function setupSubmit() {
+  const token = document.getElementById('stToken').value.trim(), pw = document.getElementById('stPw').value, pw2 = document.getElementById('stPw2').value;
+  const err = document.getElementById('stErr'), btn = document.getElementById('stGo');
+  if (btn.disabled) return;
+  err.textContent = '';
+  if (!token) { err.textContent = 'הדביקו את ה-token מ-GitHub.'; return; }
+  if (pw.length < MIN_PASSWORD) { err.textContent = 'הסיסמה צריכה לפחות ' + MIN_PASSWORD + ' תווים.'; return; }
+  if (pw !== pw2) { err.textContent = 'שתי הסיסמאות לא זהות.'; return; }
+  btn.disabled = true; btn.textContent = 'מגדיר…';
+  const fail = msg => { btn.disabled = false; btn.textContent = 'שמור והתחל לערוך'; err.textContent = msg; };
+  let latest;
+  try { latest = await fetchShared(token); }
+  catch (e) { fail(e.status === 401 ? 'GitHub לא מכיר את ה-token הזה (שגוי או שפג תוקפו).' : 'אין חיבור ל-GitHub (' + (e.status || 'network') + '). נסו שוב.'); return; }
+  if (latest.data && !pub.dirty) applyShared(latest.data, latest.sha); else if (latest.missing) remote.sha = null;
+  const prevLock = remote.lock;
+  remote.lock = await sealToken(token, pw);
+  const r = await putShared(token, latest.missing ? 'Set up shared gantt data' : 'Change edit password');
+  if (!r.ok) {
+    remote.lock = prevLock;
+    fail(r.status === 404 ? 'הריפו ' + REMOTE.owner + '/' + REMOTE.repo + ' לא נמצא, או שה-token לא נוצר עבורו.'
+       : r.status === 403 ? 'ל-token אין הרשאת כתיבה. צריך Contents: Read and write על ' + REMOTE.repo + '.'
+       : r.status === 409 || r.status === 422 ? 'הגרסה המשותפת השתנתה באמצע. נסו שוב.'
+       : 'השמירה ב-GitHub נכשלה (' + (r.status || 'network') + '). נסו שוב.');
+    return;
+  }
+  remote.state = 'shared'; remote.known = true; pub.dirty = false; pub.error = '';
+  startEditing(token, Date.now() + EDIT_TTL_MS);
+  closeDialog();
+  showToast(latest.missing ? 'נעילת העריכה הוגדרה. הגאנט משותף, והעריכה פתוחה לשעה.' : 'הסיסמה הוחלפה. העריכה פתוחה לשעה.', { duration: 9000 });
+}
+
+// ---- header UI ----
+function applyEditUI() {
+  const ro = isReadOnly();
+  document.body.classList.toggle('readonly', ro);
+  document.getElementById('snap-banner').classList.toggle('show', store.activeId === SNAP_ID);
+  document.getElementById('newTaskBtn').style.display = ro ? 'none' : '';
+  updateLockUI();
+}
+function updateLockUI() {
+  const btn = document.getElementById('lockBtn'); if (!btn) return;
+  const on = isUnlocked(), lab = document.getElementById('lockLabel');
+  btn.classList.toggle('unlocked', on);
+  btn.querySelector('use').setAttribute('href', on ? '#ic-lock-open' : '#ic-lock');
+  btn.disabled = remote.state === 'checking' && !on;
+  if (on) {
+    const m = Math.max(1, Math.ceil((edit.until - Date.now()) / 60000));
+    lab.textContent = 'נעל עריכה · ' + m + ' דק׳';
+    btn.title = 'העריכה פתוחה עוד ' + m + ' דקות. לחיצה נועלת עכשיו.';
+  } else {
+    lab.textContent = remote.state === 'local' ? 'הגדר נעילת עריכה' : 'ערוך את הגאנט';
+    btn.title = remote.state === 'local' ? 'היום כל דפדפן עורך רק את העותק של עצמו. כאן מגדירים גרסה משותפת עם סיסמת עריכה.' : 'הגאנט נעול. לחיצה מבקשת סיסמה.';
+  }
+  setSaveState();
+}
+function setSaveState() {
+  const el = document.getElementById('saveState'); if (!el) return;
+  let t = '', cls = '';
+  if (edit.token) {
+    if (pub.error === 'conflict') { t = 'התנגשות — לחצו לבחירה'; cls = 'bad'; }
+    else if (pub.error === 'net') { t = 'לא פורסם — מנסה שוב'; cls = 'bad'; }
+    else if (pub.busy) t = 'מפרסם…';
+    else if (pub.dirty) t = 'שינויים ממתינים…';
+    else { t = 'פורסם לכולם'; cls = 'ok'; }
+  } else if (remote.state === 'offline') { t = 'אין חיבור — מוצגת הגרסה האחרונה שנטענה'; }
+  else if (remote.state === 'shared') t = 'צפייה בלבד';
+  el.textContent = t; el.className = 'save-state' + (cls ? ' ' + cls : ''); el.style.display = t ? '' : 'none';
+  el.onclick = cls === 'bad' ? () => (pub.error === 'conflict' ? openConflictDialog() : publishNow()) : null;
+}
+function initShared() {
+  remote.known = !!(readShared() || {}).shared;
+  try { const s = JSON.parse(sessionStorage.getItem(EDIT_SESSION_KEY) || 'null'); if (s && s.token && s.until > Date.now()) { edit.token = s.token; edit.until = s.until; edit.warned = s.until - Date.now() <= EDIT_WARN_MS; } } catch (_) {}
+  applyEditUI();
+  refreshShared('init');
+  setInterval(lockTick, 15000);
+  setInterval(() => { if (document.visibilityState === 'visible') refreshShared('poll'); }, POLL_MS);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { lockTick(); refreshShared('focus'); } });
+  window.addEventListener('beforeunload', e => { if (pub.dirty || pub.busy) { e.preventDefault(); e.returnValue = ''; } });
+}
+
 // ---- header (title / subtitle / logo / switcher) ----
 function applyHeader() {
   const g = G();
@@ -1519,9 +1896,7 @@ function switchGantt(id, opts) {
   if (!store.gantts[id]) return;
   if (store.activeId === SNAP_ID && id !== SNAP_ID) { delete store.gantts[SNAP_ID]; clearShareHash(); }
   store.activeId = id;
-  document.body.classList.toggle('readonly', id === SNAP_ID);
-  document.getElementById('snap-banner').classList.toggle('show', id === SNAP_ID);
-  document.getElementById('newTaskBtn').style.display = id === SNAP_ID ? 'none' : '';
+  applyEditUI();
   persistStore();
   bindActive();
   document.getElementById('searchInput').value = '';
@@ -1553,7 +1928,7 @@ function renderSwitcher() {
     </button>`;
   }).join('');
   list.innerHTML = `<div class="am-group" role="group" aria-label="Your gantts"><div class="am-title">Your gantts</div>${rows}</div>
-    <div class="am-group"><button class="am-item" role="menuitem" tabindex="-1" data-action="create">
+    <div class="am-group"><button class="am-item" role="menuitem" tabindex="-1" data-action="create" aria-disabled="${isLocked()}">
       <svg class="ic" aria-hidden="true"><use href="#ic-plus"></use></svg>Create new gantt…</button></div>`;
 }
 function toggleSwitcher(e) {
@@ -1654,9 +2029,11 @@ function openAppMenu() {
   const m = document.getElementById('appMenu');
   const only = ganttList().length <= 1, ro = isReadOnly();   // the last gantt can't be deleted; snapshots can't be edited
   const del = document.getElementById('miDelete');
-  del.setAttribute('aria-disabled', String(only || ro)); del.title = ro ? 'Read-only snapshot' : only ? 'You can’t delete your only gantt' : '';
+  const roTitle = isLocked() ? 'נעול — לחצו על "ערוך את הגאנט" והקלידו סיסמה' : 'Read-only snapshot — open an editable copy first';
+  del.setAttribute('aria-disabled', String(only || ro)); del.title = ro ? roTitle : only ? 'You can’t delete your only gantt' : '';
   document.getElementById('miDeleteHint').style.display = only && !ro ? '' : 'none';
-  ['rename', 'duplicate', 'settings', 'import', 'reset'].forEach(a => { const b = m.querySelector('[data-action="' + a + '"]'); b.setAttribute('aria-disabled', String(ro)); b.title = ro ? 'Read-only snapshot — open an editable copy first' : ''; });
+  ['rename', 'duplicate', 'settings', 'import', 'reset'].forEach(a => { const b = m.querySelector('[data-action="' + a + '"]'); b.setAttribute('aria-disabled', String(ro)); b.title = ro ? roTitle : ''; });
+  const cr = m.querySelector('[data-action="create"]'); cr.setAttribute('aria-disabled', String(isLocked())); cr.title = isLocked() ? roTitle : '';
   m.classList.add('open');
   document.getElementById('menuBtn').setAttribute('aria-expanded', 'true');
   const items = appMenuItems();
@@ -1735,6 +2112,7 @@ function openDialog(o) {
   document.getElementById('dBody').innerHTML = o.body || '';
   document.getElementById('dFooter').innerHTML = o.footer || '';
   document.getElementById('dialog-box').style.maxWidth = (o.maxWidth || 560) + 'px';
+  document.getElementById('dialog-box').dir = o.dir || '';
   dialogState = { onEscape: o.onEscape || null, opener: document.activeElement };
   ov.classList.add('open');
   const first = o.focus ? document.getElementById(o.focus) : document.getElementById('dBody').querySelector(FOCUSABLE);
@@ -1903,6 +2281,7 @@ function processLogoFile(file) {
 let wiz = null;
 const WIZ_STEPS = ['Branding', 'Owners & Phases', 'Tasks'];
 function openWizard() {
+  if (blockCreate()) return;
   wiz = { step: 1, logo: null, title: '', subtitle: '', name: '', usePhases: true, phases: [], owners: [], source: 'empty', dupId: ganttList()[0].id, dirty: false };
   openDialog({ title: 'Create new gantt', desc: 'Three short steps: branding, owners & phases, then tasks.', onEscape: wizardCancel, maxWidth: 580 });
   renderWizard();
@@ -2024,6 +2403,7 @@ function wizardCancel() {
   });
 }
 function wizardCreate() {
+  if (blockCreate()) return;
   if (!wiz.title.trim()) { wiz.step = 1; renderWizard(); return; }
   const src = wiz.source === 'dup' ? store.gantts[wiz.dupId] : null;
   const viaTemplate = wiz.source === 'template';
@@ -2257,7 +2637,7 @@ function validateImportRows(parsed, g) {
 // ===== IMPORT DIALOG (pick file + mode → preview → apply, with Undo) =====
 let imp = null;
 function openImportDialog(o) {
-  if (isReadOnly()) { showToast('This is a read-only snapshot — open an editable copy first (banner above).'); return; }
+  if (blockEdit()) return;
   imp = { mode: (o && o.mode) || 'add', parsed: null, result: null, fileName: '' };
   openDialog({ title: 'Import from template', desc: 'Load tasks from a filled Excel (.xlsx) or CSV template into “' + G().name + '”.', maxWidth: 720, onEscape: () => { closeDialog(); imp = null; } });
   renderImportPick();
@@ -2340,6 +2720,7 @@ function renderImportPreview() {
   setTimeout(() => { const b = document.getElementById(ok.length ? 'imApply' : 'imBack'); if (b) b.focus(); }, 20);
 }
 function applyImport() {
+  if (blockEdit()) return;
   const g = G(), ok = imp.result.rows.filter(r => r.ok), mode = imp.mode, fileName = imp.fileName;
   const before = { tasks: deep(g.tasks), settings: deep(g.settings) };
   const base = Date.now();
@@ -2433,6 +2814,7 @@ async function openSnapshotFromHash() {
   return true;
 }
 function adoptSnapshot() {
+  if (blockCreate()) return;
   const snap = store.gantts[SNAP_ID]; if (!snap) return;
   const g = makeGantt({ name: snap.name, title: snap.title, subtitle: snap.subtitle, logo: snap.logo, usePhases: snap.settings.usePhases,
     phases: deep(snap.settings.phases), owners: deep(snap.settings.owners), view: snap.settings.view, tasks: snap.tasks });
@@ -2466,7 +2848,7 @@ function ctxSub(icon, label, itemsHTML) {
 }
 function openTaskMenu(e, id) {
   e.preventDefault(); e.stopPropagation();
-  if (isReadOnly()) { showToast('This is a read-only snapshot — open an editable copy first (banner above).'); return; }
+  if (blockEdit()) return;
   const t = tasks.find(x => x.id === id); if (!t) return;
   closeAllMenus(); hideMeta();
   const g = G(), m = document.getElementById('ctx-menu');
@@ -2557,6 +2939,7 @@ function ctxKey(e) {
   }
 }
 function ctxAction(act, id, val) {
+  if (blockEdit()) return;
   const t = tasks.find(x => x.id === id); if (!t) return;
   const idx = tasks.findIndex(x => x.id === id);
   switch (act) {
@@ -2591,6 +2974,7 @@ function ctxAction(act, id, val) {
   }
 }
 function setTaskStatus(id, status) {
+  if (blockEdit()) return;
   const t = tasks.find(x => x.id === id); if (!t || t.status === status) return;
   const wasDone = t.status === 'Completed';
   t.status = status; save(); renderGantt();
@@ -2599,6 +2983,7 @@ function setTaskStatus(id, status) {
 }
 // Delete with a choice: close the gap (pull the following tasks earlier by this task's length) or leave them; always undoable.
 function deleteTaskFlow(id) {
+  if (blockEdit()) return;
   const t = tasks.find(x => x.id === id); if (!t) return;
   const idx = tasks.findIndex(x => x.id === id), followers = tasks.length - idx - 1;
   const days = Math.max(1, diff(pd(t.start), pd(t.end)) + 1);
@@ -2626,6 +3011,7 @@ function deleteTaskFlow(id) {
 // ===== SETTINGS (logo · Owners & Phases) — edits a working copy, committed on Save, with Undo =====
 let settingsW = null;
 function openSettingsDialog() {
+  if (blockEdit()) return;
   const g = G();
   settingsW = { logo: g.logo, usePhases: g.settings.usePhases, phases: deep(g.settings.phases), owners: deep(g.settings.owners), tasks: deep(g.tasks), dirty: false };
   openDialog({ title: 'Settings — ' + g.name, desc: 'Logo, phases and owners for this gantt. Changes apply when you save.', maxWidth: 600, onEscape: settingsCancel });
@@ -2689,6 +3075,7 @@ function settingsCancel() {
     onConfirm: () => { closeDialog(); settingsW = null; } });
 }
 function settingsSave() {
+  if (blockEdit()) return;
   const g = G(), w = settingsW;
   const before = { logo: g.logo, settings: deep(g.settings), tasks: deep(g.tasks) };
   g.logo = w.logo; g.settings.usePhases = w.usePhases; g.settings.phases = w.phases; g.settings.owners = w.owners; g.tasks = w.tasks;
@@ -2705,6 +3092,7 @@ function settingsSave() {
 
 // ===== RENAME =====
 function openRenameDialog() {
+  if (blockEdit()) return;
   const g = G();
   openDialog({
     title: 'Rename gantt', desc: 'How this gantt is named in the list and in the header.', maxWidth: 480, focus: 'rnName',
@@ -2727,6 +3115,7 @@ function openRenameDialog() {
 
 // ===== DUPLICATE =====
 function duplicateGantt() {
+  if (blockEdit()) return;
   const src = G();
   const g = makeGantt({ name: src.name + ' (copy)', title: src.title, subtitle: src.subtitle, logo: src.logo,
     usePhases: src.settings.usePhases, phases: deep(src.settings.phases), owners: deep(src.settings.owners), view: src.settings.view, tasks: src.tasks });
@@ -2738,6 +3127,7 @@ function duplicateGantt() {
 
 // ===== DELETE (with 8-second Undo) =====
 function deleteGanttFlow() {
+  if (blockEdit()) return;
   const list = ganttList(), g = G();
   if (list.length <= 1) { showToast('This is your only gantt — create another one before deleting it.'); return; }
   confirmDialog({
@@ -2797,6 +3187,7 @@ function save() {
 }
 
 function resetData() {
+  if (blockEdit()) return;
   const g = G(), cur = tasks.length, orig = (g.baseline || []).length;
   confirmDialog({
     title: 'Reset “' + g.name + '” to original?',
@@ -3219,6 +3610,7 @@ function showReorderLine(y) {
 function hideReorderLine() { const l = document.getElementById('reorder-line'); if (l) l.style.display = 'none'; }
 
 function reorderTask(dragId, targetId, placeAfter) {
+  if (blockEdit()) return;
   if (dragId === targetId) { renderGantt(); return; }
   const di = tasks.findIndex(t => t.id === dragId);
   const target = tasks.find(t => t.id === targetId);
@@ -3282,7 +3674,7 @@ function syncColorStripe(col) {
 }
 
 function openModal(id = null) {
-  if (isReadOnly()) { showToast('This is a read-only snapshot — open an editable copy first (banner above).'); return; }
+  if (blockEdit()) return;
   const overlay = document.getElementById('modal-overlay');
   const t = id ? tasks.find(x => x.id === id) : null;
 
@@ -3319,6 +3711,7 @@ function closeModal() {
 
 function saveTask(e) {
   e.preventDefault();
+  if (blockEdit()) { closeModal(); return; }
   const id = document.getElementById('fId').value;
   const data = {
     task: document.getElementById('fName').value.trim(),
@@ -3359,6 +3752,7 @@ function saveTask(e) {
 }
 
 function deleteCurrentTask() {
+  if (blockEdit()) return;
   const id = +document.getElementById('fId').value;
   if (!id) return;
   closeModal();
@@ -3485,7 +3879,7 @@ function showToast(msg, opts) {
   const el = document.getElementById('celebrate-toast');
   const action = opts && opts.action;
   el.textContent = '';
-  const span = document.createElement('span'); span.textContent = msg; el.appendChild(span);
+  const span = document.createElement('span'); span.textContent = msg; span.dir = 'auto'; el.appendChild(span);   // Hebrew messages read right-to-left
   el.classList.toggle('with-action', !!action);
   if (action) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-btn'; b.textContent = action.label;
@@ -3632,6 +4026,7 @@ populateFilters();
 updateStats();
 renderGantt();
 openSnapshotFromHash();
+initShared();
 window.addEventListener('hashchange', () => { if (/^#g=/.test(location.hash)) openSnapshotFromHash(); });
 
 </script>
