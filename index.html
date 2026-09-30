@@ -2169,7 +2169,7 @@ async function parseXlsx(buf) {
   if (!pick) throw new Error('The workbook has no sheets.');
   let target = rels[pick.rid] || 'worksheets/sheet1.xml'; target = target.replace(/^\//, ''); if (!target.startsWith('xl/')) target = 'xl/' + target;
   const shared = []; const ss = files.get('xl/sharedStrings.xml');
-  if (ss) xmlDoc(ss).getElementsByTagName('si').forEach && [...xmlDoc(ss).getElementsByTagName('si')].forEach(si => shared.push([...si.getElementsByTagName('t')].map(t => t.textContent).join('')));
+  if (ss) [...xmlDoc(ss).getElementsByTagName('si')].forEach(si => shared.push([...si.getElementsByTagName('t')].map(t => t.textContent).join('')));
   const sx = xmlDoc(files.get(target));
   const rows = [];
   [...sx.getElementsByTagName('row')].forEach(row => {
@@ -2426,7 +2426,7 @@ async function openSnapshotFromHash() {
   if (!p) return false;
   const snap = makeGantt({ id: SNAP_ID, name: p.name || 'Shared gantt', title: p.title, subtitle: p.subtitle, logo: p.logo, usePhases: p.settings && p.settings.usePhases !== false,
     phases: p.settings && p.settings.phases, owners: p.settings && p.settings.owners, view: p.settings && p.settings.view, tasks: p.tasks });
-  store.lastActiveId = store.activeId;
+  if (store.activeId !== SNAP_ID) store.lastActiveId = store.activeId;   // a second link opened over a snapshot must still return to the user's own gantt
   store.gantts[SNAP_ID] = snap;
   document.getElementById('snapText').innerHTML = 'You were sent a snapshot of <b>' + escH(snap.name) + '</b> · ' + snap.tasks.length + ' task' + (snap.tasks.length === 1 ? '' : 's') + (p.madeAt ? ' · made ' + escH(fmtUpdated(p.madeAt)) : '');
   switchGantt(SNAP_ID, { silent: true });
