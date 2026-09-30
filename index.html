@@ -398,6 +398,22 @@
       box-shadow: 0 4px 14px rgba(20,30,60,0.22);
     }
     #meta-tip .tip-owner { color: #b9c2d6; }
+    #meta-tip.task-tip { white-space: normal; max-width: 380px; font-size: 11px; }
+    #meta-tip .tip-title { display: block; font-weight: 700; font-size: 11.5px; margin-bottom: 2px; }
+
+    /* Today chip: always inside the visible part of the day bar; pinned to an edge when today is scrolled away */
+    .today-chip {
+      position: absolute; top: 3px; transform: translateX(-50%); z-index: 6;
+      font: inherit; font-size: 9px; font-weight: 700; line-height: 1.4; color: #fff; background: #ff5050;
+      border: 0; padding: 1px 6px; border-radius: 8px; white-space: nowrap; cursor: pointer;
+    }
+    .today-chip:hover { background: #e63c3c; }
+    .today-chip.edge { box-shadow: 0 1px 4px rgba(200,40,40,0.35); }
+    .today-chip:focus-visible { outline: 2px solid var(--tg-accent); outline-offset: 2px; }
+
+    /* Task window in view-only mode */
+    #modal-box.viewonly .field-input[readonly], #modal-box.viewonly .field-input:disabled { background: #f7f8fc; color: var(--tg-text); cursor: default; opacity: 1; }
+    #modal-box.viewonly #colorPresets, #modal-box.viewonly .save-btn, #modal-box.viewonly #mDeleteBtn { display: none !important; }
 
     .status-badge {
       font-size: 9px;
@@ -510,21 +526,6 @@
       pointer-events: none;
       z-index: 5;
     }
-    .today-label {
-      position: absolute;
-      top: 3px;
-      font-size: 9px;
-      font-weight: 700;
-      color: #fff;
-      background: #ff5050;
-      padding: 1px 5px;
-      border-radius: 8px;
-      white-space: nowrap;
-      transform: translateX(-50%);
-      z-index: 6;
-      pointer-events: none;
-    }
-
     /* ===== SQUIRCLE MODAL ===== */
     #modal-overlay {
       position: fixed; inset: 0;
@@ -3483,7 +3484,7 @@ function renderGantt() {
                oncontextmenu="openTaskMenu(event,${t.id})" onkeydown="taskRowKey(event,${t.id})"
                onclick="openModal(${t.id})">
             <span class="drag-handle" title="Drag to reorder" aria-hidden="true"><svg class="ic"><use href="#ic-dots-six-vertical"></use></svg></span>
-            <div class="task-name-col">
+            <div class="task-name-col" onmouseenter="showTaskTip(event,${t.id})" onmouseleave="hideMeta()">
               <div class="task-name">${escH(t.task)}</div>
             </div>
             ${ownerChip}
@@ -3500,6 +3501,7 @@ function renderGantt() {
               style="left:${lp}px;width:${bw}px;background-color:${t.color||PALETTE[0]};"
               onmousedown="startDrag(event,${t.id},'move')"
               oncontextmenu="openTaskMenu(event,${t.id})"
+              onmouseenter="showTaskTip(event,${t.id})" onmouseleave="hideMeta()"
               onclick="openModal(${t.id})">
               <div class="bar-resize bar-resize-left" onmousedown="event.stopPropagation();startDrag(event,${t.id},'rs')"></div>
               <span class="bar-label">${escH(t.task)}</span>
@@ -3520,14 +3522,43 @@ function renderGantt() {
         <div class="gantt-timeline-header" style="width:${W}px;position:relative;">
           <div class="gantt-months-row">${monthsHTML}</div>
           <div class="gantt-days-row">${daysHTML}</div>
-          ${todayVisible ? `<div class="today-label" style="left:${todayLeft + dayWidth/2}px">Today</div>` : ''}
+          <button type="button" class="today-chip" id="todayChip" onclick="scrollToToday()" data-x="${today < minD ? -1 : today > maxD ? W + 1 : todayLeft + dayWidth / 2}" data-w="${W}">Today</button>
         </div>
       </div>
       ${rowsHTML}
     </div>`;
 
   updateStats();
+  positionTodayChip();
 }
+
+// ---- Today chip: follows today inside the visible day bar, pinned to the nearest edge when today is off-screen ----
+const SIDEBAR_W = 310;
+function positionTodayChip() {
+  const chip = document.getElementById('todayChip'), sc = document.getElementById('gantt-scroll');
+  if (!chip || !sc) return;
+  const x = +chip.dataset.x, lo = sc.scrollLeft, hi = sc.scrollLeft + sc.clientWidth - SIDEBAR_W;
+  chip.textContent = 'Today';
+  const half = chip.offsetWidth / 2 + 6;
+  const min = lo + half, max = Math.max(min, hi - half);
+  const side = x < min ? 'left' : x > max ? 'right' : '';
+  chip.textContent = side === 'left' ? '‹ Today' : side === 'right' ? 'Today ›' : 'Today';
+  const half2 = chip.offsetWidth / 2 + 6;
+  chip.style.left = Math.min(Math.max(x, lo + half2), Math.max(lo + half2, hi - half2)) + 'px';
+  chip.classList.toggle('edge', !!side);
+  chip.title = side ? 'Today is off-screen — click to scroll to it' : 'Scroll to today';
+  chip.setAttribute('aria-label', chip.title);
+}
+function scrollToToday() {
+  const chip = document.getElementById('todayChip'), sc = document.getElementById('gantt-scroll');
+  if (!chip || !sc) return;
+  const x = +chip.dataset.x, w = +chip.dataset.w;
+  if (x < 0 || x > w) showToast('Today is outside this gantt’s dates');
+  sc.scrollTo({ left: Math.max(0, Math.min(x, w) - (sc.clientWidth - SIDEBAR_W) / 2), behavior: 'smooth' });
+}
+{ let raf = 0; const onMove = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(positionTodayChip); };
+  document.getElementById('gantt-scroll').addEventListener('scroll', () => { onMove(); hideMeta(); }, { passive: true });
+  window.addEventListener('resize', onMove); }
 
 function escH(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -3539,6 +3570,7 @@ function escJS(s) {   // safe inside a single-quoted JS string within a double-q
 // ===== DRAG: horizontal = move/resize dates · vertical = reorder =====
 let drag = null;
 function startDrag(e, id, mode) {
+  hideMeta();
   if (e.button !== 0 || isReadOnly()) return;
   e.preventDefault();
   const bar = document.getElementById('bar-' + id);
@@ -3587,6 +3619,7 @@ function endDrag(e) {
   document.removeEventListener('mouseup', endDrag);
   document.body.classList.remove('reordering');
   hideReorderLine();
+  if (!d.moved) return;   // a plain click: leave the bar in place so its click opens the task (re-rendering here swallowed it)
 
   if (d.axis === 'reorder') {
     const tgt = rowUnderY(e.clientY);
@@ -3715,11 +3748,19 @@ function syncColorStripe(col) {
 }
 
 function openModal(id = null) {
-  if (blockEdit()) return;
-  const overlay = document.getElementById('modal-overlay');
   const t = id ? tasks.find(x => x.id === id) : null;
+  const ro = isReadOnly();
+  if (ro && !t) { blockEdit(); return; }   // a locked gantt can be read, not added to
+  hideMeta();
+  const overlay = document.getElementById('modal-overlay');
+  const box = document.getElementById('modal-box');
+  box.classList.toggle('viewonly', ro);
+  box.querySelectorAll('form input:not([type=hidden]), form textarea').forEach(el => { el.readOnly = ro; });
+  box.querySelectorAll('form select, #fColor').forEach(el => { el.disabled = ro; });
+  box.querySelector('.modal-subtitle').innerHTML = ro ? (isLocked() ? 'View only — to edit, click <bdi dir="rtl">„ערוך את הגאנט“</bdi> and enter the password' : 'View only — this is a read-only snapshot') : 'Click fields to edit task details';
+  box.querySelector('.modal-footer .cancel-btn').textContent = ro ? 'Close' : 'Cancel';
 
-  document.getElementById('mTitle').textContent = t ? 'Edit Task' : 'New Task';
+  document.getElementById('mTitle').textContent = ro ? 'Task details' : t ? 'Edit Task' : 'New Task';
   document.getElementById('mDeleteBtn').style.display = t ? 'flex' : 'none';
   document.getElementById('fId').value = t ? t.id : '';
   document.getElementById('fName').value = t ? t.task : '';
@@ -3752,7 +3793,7 @@ function closeModal() {
 
 function saveTask(e) {
   e.preventDefault();
-  if (blockEdit()) { closeModal(); return; }
+  if (isReadOnly()) { closeModal(); return; }   // view-only window: Enter just closes it
   const id = document.getElementById('fId').value;
   const data = {
     task: document.getElementById('fName').value.trim(),
@@ -4040,7 +4081,20 @@ function showMeta(ev, owner, dates) {
   metaTip.style.left = left + 'px';
   metaTip.style.top  = (r.top + r.height / 2 - metaTip.offsetHeight / 2) + 'px';
 }
-function hideMeta() { metaTip.style.display = 'none'; }
+function hideMeta() { metaTip.style.display = 'none'; metaTip.classList.remove('task-tip'); }
+// Full title + owner · dates · status, over the hovered bar or task name (works in view-only mode too)
+function showTaskTip(ev, id) {
+  if (drag || sideDragId != null) return;
+  const t = tasks.find(x => x.id === id); if (!t) return;
+  metaTip.classList.add('task-tip');
+  metaTip.innerHTML = '<span class="tip-title" dir="auto">' + escH(t.task) + '</span><span class="tip-owner">' + escH(t.responsible || '—') + '</span> &nbsp;·&nbsp; ' + t.start + ' → ' + t.end + ' &nbsp;·&nbsp; ' + escH(t.status);
+  metaTip.style.display = 'block';
+  const r = ev.currentTarget.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+  const w = metaTip.offsetWidth, h = metaTip.offsetHeight;
+  const cx = Math.max(r.left, Math.min(ev.clientX, r.right));
+  metaTip.style.left = Math.max(8, Math.min(cx - w / 2, vw - w - 8)) + 'px';
+  metaTip.style.top = (r.top - h - 6 >= 8 ? r.top - h - 6 : r.bottom + 6) + 'px';
+}
 
 // ===== STAT-CHIP HOVER → highlight matching tasks (Total = all) =====
 let hlStatus = null;
