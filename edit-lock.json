@@ -1,0 +1,9 @@
+{
+ "v": 1,
+ "kdf": "PBKDF2-SHA256",
+ "iter": 600000,
+ "salt": "hyruSI2kOezRG5drvcWKog==",
+ "iv": "J4fLaOV6dLBkxiMy",
+ "ct": "tcVmurLq4g769lt2m6dxJfLELiTR1QtIrLy0SqafbT6kbJ6s1T1tb7L2Mlt2mR/qlinpvIWfYaptuCFbwuF/+8z13FFm9ycDa5KPrpGpXURH1NN2/jp5APkg4rFlFKXtOgpaBRQBoR1tw76Abw==",
+ "made": "2026-09-30"
+}
