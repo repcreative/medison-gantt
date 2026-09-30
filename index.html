@@ -1527,20 +1527,22 @@ function touch() { G().updatedAt = new Date().toISOString(); }
 function saveView() { G().settings.view = view; persistStore(); }
 
 // =====================================================================
-// SHARED DATA + EDIT LOCK
-// The shared gantts live as data.json in a separate public repo (REMOTE.repo). Everyone reads it.
-// Writing needs a GitHub token with Contents: write on that repo only; the token is stored inside
-// data.json encrypted with the edit password (PBKDF2 → AES-GCM), so the password itself is never stored.
+// SHARED DATA + EDIT LOCK — two repos, one job each
+// • The gantts:   data.json in the public repo DATA_REPO. Everyone reads it; anyone with the edit password writes it.
+// • The password: edit-lock.json next to this page, in the site repo. Only the repo owner can change it (on GitHub).
+// The lock holds a fine-grained token (Contents: write on DATA_REPO only) encrypted with the edit password
+// (PBKDF2 → AES-GCM). The password itself is never stored. Editors can decrypt the token, but the token can't
+// touch the site repo, so they can edit gantts and nothing else — not the site's code, not the password.
 // The one-hour lock is a convenience, not a security boundary: whoever knows the password can edit.
-// A separate repo keeps a leaked password from ever reaching the site's code.
 // =====================================================================
-const REMOTE = { owner: 'repcreative', repo: 'medison-gantt-data', path: 'data.json' };
+const REMOTE = { owner: 'repcreative', repo: 'gantt-data', path: 'data.json' };
+const SITE = { owner: 'repcreative', repo: 'medison-gantt', branch: 'main', lockFile: 'edit-lock.json' };
 const EDIT_TTL_MS = 60 * 60 * 1000, EDIT_WARN_MS = 5 * 60 * 1000, PUBLISH_DELAY_MS = 2500, POLL_MS = 90 * 1000, RETRY_MS = 15000;
-const KDF_ITER = 600000, MIN_PASSWORD = 12;
+const KDF_ITER = 600000, MIN_PASSWORD = 8;
 const SHARED_META_KEY = 'gs_shared_v1', EDIT_SESSION_KEY = 'gs_edit_v1', LOCAL_BACKUP_KEY = 'gs_v1_before_shared';
 const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
-// state: 'checking' (first fetch pending) | 'shared' | 'local' (never set up → legacy per-browser editing) | 'offline'
-const remote = { state: 'checking', known: false, sha: null, lock: null, lastJSON: null };
+// state: 'checking' (first fetch pending) | 'shared' (edit-lock.json exists) | 'local' (not set up → legacy per-browser editing) | 'offline'
+const remote = { state: 'checking', known: false, sha: null, lock: null, dataMissing: false, lastJSON: null };
 const edit = { token: null, until: 0, warned: false };
 const pub = { dirty: false, busy: false, gen: 0, timer: null, error: '' };   // error: '' | 'net' | 'conflict' | 'auth'
 
@@ -1553,6 +1555,11 @@ const LOCKED_MSG = 'הגאנט נעול לעריכה — לחצו על "ערוך
 function roMsg() { return isLocked() ? LOCKED_MSG : 'This is a read-only snapshot — open an editable copy first (banner above).'; }
 function blockEdit() { if (!isReadOnly()) return false; showToast(roMsg()); return true; }
 function blockCreate() { if (!isLocked()) return false; showToast(LOCKED_MSG); return true; }
+function passwordProblem(pw) {
+  if (pw.length < MIN_PASSWORD) return 'הסיסמה צריכה לפחות ' + MIN_PASSWORD + ' תווים.';
+  if (!/\p{L}/u.test(pw) || !/\p{Nd}/u.test(pw)) return 'הסיסמה צריכה לכלול גם אותיות וגם מספרים.';
+  return '';
+}
 
 // ---- encoding / crypto ----
 function b64FromBytes(bytes) { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
@@ -1564,7 +1571,7 @@ async function passwordKey(pw, salt, iter) {
 async function sealToken(token, pw) {
   const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await passwordKey(pw, salt, KDF_ITER), u8(token)));
-  return { v: 1, kdf: 'PBKDF2-SHA256', iter: KDF_ITER, salt: b64FromBytes(salt), iv: b64FromBytes(iv), ct: b64FromBytes(ct) };
+  return { v: 1, kdf: 'PBKDF2-SHA256', iter: KDF_ITER, salt: b64FromBytes(salt), iv: b64FromBytes(iv), ct: b64FromBytes(ct), made: new Date().toISOString().slice(0, 10) };
 }
 async function openToken(lock, pw) {   // → token string, or null for a wrong password
   try {
@@ -1573,7 +1580,7 @@ async function openToken(lock, pw) {   // → token string, or null for a wrong 
   } catch (_) { return null; }
 }
 
-// ---- GitHub API ----
+// ---- reading ----
 function gh(p, o) {
   o = o || {};
   const headers = { Accept: 'application/vnd.github+json' };
@@ -1584,6 +1591,16 @@ function gh(p, o) {
     { method: o.method || 'GET', headers, body: o.body ? JSON.stringify(o.body) : undefined, cache: o.method ? 'no-store' : 'no-cache' });
 }
 function httpError(r) { const e = new Error(r ? 'HTTP ' + r.status : 'network'); e.status = r ? r.status : 0; return e; }
+// The lock sits next to this page (served by Pages, no API limits). → lock object | null (not set up). Throws when unreachable.
+async function fetchLock() {
+  let r = null;
+  try { r = await fetch(SITE.lockFile + '?t=' + Date.now(), { cache: 'no-store' }); } catch (_) {}
+  if (r && r.status === 404) return null;
+  if (!r || !r.ok) throw httpError(r);
+  const l = await r.json();
+  if (!l || !l.ct || !l.iv || !l.salt) throw new Error('edit-lock.json is not a valid lock');
+  return l;
+}
 // → { data, sha } | { missing: true }. Throws (err.status) when GitHub can't be reached or refuses the token.
 async function fetchShared(token) {
   let r = null;
@@ -1608,11 +1625,11 @@ async function fetchShared(token) {
 }
 function sharedGantts() { const o = {}; for (const [k, v] of Object.entries(store.gantts)) if (k !== SNAP_ID) o[k] = v; return o; }
 async function putShared(token, message) {   // → { ok, status, limited }
-  const payload = { version: 1, updatedAt: new Date().toISOString(), lock: remote.lock, gantts: sharedGantts() };
+  const payload = { version: 1, updatedAt: new Date().toISOString(), gantts: sharedGantts() };
   const json = JSON.stringify(payload.gantts);
   let r = null;
   try { r = await gh('/contents/' + REMOTE.path, { method: 'PUT', token, body: { message, content: b64FromBytes(u8(JSON.stringify(payload, null, 1))), sha: remote.sha || undefined } }); } catch (_) {}
-  if (r && r.ok) { const j = await r.json(); remote.sha = j.content.sha; remote.lastJSON = json; writeShared(); return { ok: true, status: r.status }; }
+  if (r && r.ok) { const j = await r.json(); remote.sha = j.content.sha; remote.lastJSON = json; remote.dataMissing = false; writeShared(); return { ok: true, status: r.status }; }
   return { ok: false, status: r ? r.status : 0, limited: !!r && r.headers.get('x-ratelimit-remaining') === '0' };
 }
 
@@ -1635,7 +1652,7 @@ function applyShared(data, sha) {
   // The first time this browser sees the shared copy, keep whatever it had on its own (it is about to be replaced).
   if (!readShared()) { try { const mine = localStorage.getItem(STORE_KEY); if (mine && !localStorage.getItem(LOCAL_BACKUP_KEY)) localStorage.setItem(LOCAL_BACKUP_KEY, mine); } catch (_) {} }
   if (sha) remote.sha = sha;
-  remote.lock = data.lock || null; remote.state = 'shared'; remote.known = true; remote.lastJSON = JSON.stringify(gantts);
+  remote.dataMissing = false; remote.lastJSON = JSON.stringify(gantts);
   const snap = store.gantts[SNAP_ID];
   store.gantts = gantts; if (snap) store.gantts[SNAP_ID] = snap;
   if (store.lastActiveId && !gantts[store.lastActiveId]) store.lastActiveId = null;
@@ -1646,16 +1663,23 @@ function applyShared(data, sha) {
 }
 async function refreshShared(reason) {
   if (pub.dirty || pub.busy || (reason !== 'init' && busyUI())) return;
-  let res;
-  try { res = await fetchShared(isUnlocked() ? edit.token : null); }
+  let lock, res;
+  try { [lock, res] = await Promise.all([fetchLock(), fetchShared(isUnlocked() ? edit.token : null)]); }
   catch (e) {
     if (isUnlocked() && e.status === 401) { keyRejected(); return; }
     if (remote.state === 'checking') { remote.state = remote.known ? 'offline' : 'local'; applyEditUI(); }
     return;
   }
   if (pub.dirty || pub.busy) return;   // the user edited while we were fetching; their save decides
-  if (res.missing) { remote.state = 'local'; remote.known = false; try { localStorage.removeItem(SHARED_META_KEY); } catch (_) {} applyEditUI(); return; }
+  if (!lock && res.missing) {          // nothing set up → the app works exactly as before
+    remote.state = 'local'; remote.known = false; remote.lock = null;
+    try { localStorage.removeItem(SHARED_META_KEY); } catch (_) {}
+    applyEditUI(); return;
+  }
+  remote.lock = lock; remote.known = true;
   const first = remote.state !== 'shared';
+  remote.state = 'shared';
+  if (res.missing) { remote.dataMissing = true; remote.sha = null; writeShared(); applyEditUI(); return; }   // lock made, nothing published yet
   const changed = res.sha ? res.sha !== remote.sha : JSON.stringify(res.data.gantts) !== remote.lastJSON;
   if (first || changed) {
     if (!first && busyUI()) return;
@@ -1686,12 +1710,13 @@ async function publishNow() {
     setSaveState(); return !pub.dirty;
   }
   if (r.status === 409 || r.status === 422) { pub.error = 'conflict'; setSaveState(); openConflictDialog(); return false; }
-  if (!r.limited && (r.status === 401 || r.status === 403 || r.status === 404)) { pub.error = 'auth'; setSaveState(); keyRejected(); return false; }
+  if (!r.limited && (r.status === 401 || r.status === 403 || r.status === 404)) { pub.error = 'auth'; setSaveState(); keyRejected(r.status); return false; }
   pub.error = 'net'; setSaveState(); pub.timer = setTimeout(publishNow, RETRY_MS); return false;
 }
-function keyRejected() {
+function keyRejected(status) {
   stopEditing();
-  showToast('GitHub דחה את מפתח העריכה (פג תוקף או בוטל). ' + (pub.dirty ? 'השינויים האחרונים לא פורסמו. ' : '') + 'צריך להגדיר סיסמה מחדש: "ערוך את הגאנט" ← "הגדרת סיסמה חדשה".', { duration: 15000 });
+  const why = status === 403 || status === 404 ? 'למפתח העריכה אין הרשאת כתיבה לריפו ' + REMOTE.repo + '. ' : 'GitHub דחה את מפתח העריכה (פג תוקף או בוטל). ';
+  showToast(why + (pub.dirty ? 'השינויים האחרונים לא פורסמו. ' : '') + 'בעל הריפו צריך ליצור token וסיסמה חדשים ("החלפת סיסמה").', { duration: 15000 });
 }
 async function openConflictDialog() {
   let latest = null;
@@ -1735,7 +1760,7 @@ function lockBtnClick() {
   if (isUnlocked()) { lockEditing(); return; }
   if (remote.state === 'checking') { showToast('רגע, טוען את הגרסה המשותפת…'); return; }
   if (remote.state === 'offline') { showToast('אין חיבור ל-GitHub כרגע, אז אי אפשר לפתוח עריכה. מוצגת הגרסה האחרונה שנטענה.'); return; }
-  if (remote.state === 'local' || !remote.lock) { openSetupDialog(); return; }
+  if (remote.state === 'local' || !remote.lock) { openLockTool(); return; }
   openUnlockDialog();
 }
 function openUnlockDialog() {
@@ -1746,12 +1771,12 @@ function openUnlockDialog() {
         <label class="field-label" for="ulPw">סיסמה</label>
         <input type="password" id="ulPw" class="field-input" autocomplete="current-password" dir="ltr">
         <div class="field-error" id="ulErr" aria-live="assertive"></div>
-        <div class="field-hint">כל שינוי נשמר ומתפרסם לכל מי שפותח את הגאנט, תוך כמה שניות. <a href="#" id="ulSetup">הגדרת סיסמה חדשה</a></div>
+        <div class="field-hint">${remote.dataMissing ? '<b>עדיין אין גרסה משותפת.</b> ' + ganttList().length + ' הגאנטים שבדפדפן הזה יפורסמו כגרסה שכולם רואים. ' : 'כל שינוי נשמר ומתפרסם לכל מי שפותח את הגאנט, תוך כמה שניות. '}<a href="#" id="ulSetup">החלפת סיסמה (בעל הריפו)</a></div>
       </form>`,
     footer: '<span></span><div class="footer-actions"><button type="button" class="cancel-btn" onclick="closeDialog()">ביטול</button><button type="button" class="save-btn" id="ulGo">פתח לעריכה</button></div>' });
   document.getElementById('ulGo').onclick = unlockSubmit;
   document.getElementById('ulPw').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); unlockSubmit(); } });
-  document.getElementById('ulSetup').onclick = e => { e.preventDefault(); openSetupDialog(); };
+  document.getElementById('ulSetup').onclick = e => { e.preventDefault(); openLockTool(); };
 }
 async function unlockSubmit() {
   const pwEl = document.getElementById('ulPw'), err = document.getElementById('ulErr'), btn = document.getElementById('ulGo');
@@ -1764,68 +1789,84 @@ async function unlockSubmit() {
   if (!token) { done('סיסמה שגויה.'); return; }
   let latest;
   try { latest = await fetchShared(token); }
-  catch (e) { done(e.status === 401 ? 'הסיסמה נכונה, אבל GitHub דחה את מפתח העריכה (פג תוקף או בוטל). צריך להגדיר סיסמה חדשה.' : 'אין חיבור ל-GitHub כרגע. נסו שוב בעוד רגע.'); return; }
+  catch (e) { done(e.status === 401 ? 'הסיסמה נכונה, אבל GitHub דחה את מפתח העריכה (פג תוקף או בוטל). בעל הריפו צריך ליצור token וסיסמה חדשים.' : 'אין חיבור ל-GitHub כרגע. נסו שוב בעוד רגע.'); return; }
   if (latest.data) applyShared(latest.data, latest.sha);
+  if (latest.missing) {   // first unlock after the lock was made: this browser's gantts become the shared copy
+    remote.sha = null; remote.dataMissing = true;
+    const r = await putShared(token, 'Publish the first shared version');
+    if (!r.ok) {
+      done(r.status === 403 || r.status === 404 ? 'הסיסמה נכונה, אבל למפתח אין הרשאת כתיבה ל-' + REMOTE.owner + '/' + REMOTE.repo + ' (צריך Contents: Read and write).' : 'הפרסום הראשון ל-GitHub נכשל (' + (r.status || 'network') + '). נסו שוב.');
+      return;
+    }
+  }
   startEditing(token, Date.now() + EDIT_TTL_MS);
   closeDialog();
-  showToast('העריכה פתוחה לשעה. כל שינוי מתפרסם לכולם אוטומטית.');
+  showToast(latest.missing ? 'הגאנטים מהדפדפן הזה פורסמו לכולם. העריכה פתוחה לשעה.' : 'העריכה פתוחה לשעה. כל שינוי מתפרסם לכולם אוטומטית.', { duration: 8000 });
 }
-function openSetupDialog() {
-  const first = remote.state !== 'shared', n = ganttList().length;
-  openDialog({ title: first ? 'הגדרת נעילת עריכה' : 'הגדרת סיסמה חדשה', dir: 'rtl', maxWidth: 560, focus: 'stToken',
-    desc: 'פעם אחת: מחברים מפתח עריכה של GitHub ובוחרים סיסמה. אחר כך כל מי שמקליד את הסיסמה יכול לערוך.',
-    body: `<form onsubmit="return false" style="display:flex;flex-direction:column;gap:12px">
+// Owner tool: builds edit-lock.json. It never writes anything itself — the owner commits the file on GitHub,
+// which is exactly what keeps password changes owner-only.
+function lockFileUrl(json) {
+  const base = 'https://github.com/' + SITE.owner + '/' + SITE.repo;
+  return remote.lock ? base + '/edit/' + SITE.branch + '/' + SITE.lockFile
+                     : base + '/new/' + SITE.branch + '?filename=' + encodeURIComponent(SITE.lockFile) + '&value=' + encodeURIComponent(json);
+}
+function openLockTool() {
+  const exists = !!remote.lock;
+  openDialog({ title: exists ? 'החלפת סיסמת עריכה' : 'הגדרת נעילת עריכה', dir: 'rtl', maxWidth: 580, focus: 'ltToken',
+    desc: 'רק בעל הריפו ' + SITE.repo + ' יכול להשלים את זה: הקובץ שנוצר כאן נשמר ב-GitHub, דרך החשבון שלך.',
+    body: `<form onsubmit="return false" style="display:flex;flex-direction:column;gap:12px" id="ltForm">
       <input type="text" name="username" value="medison-gantt" autocomplete="username" hidden>
       <div class="share-note"><svg class="ic" aria-hidden="true"><use href="#ic-warning"></use></svg><div>
-        <b>הסיסמה לא נשמרת בשום מקום.</b> בריפו נשמר רק מפתח העריכה, מוצפן בסיסמה. שמרו אותה במנהל סיסמאות, והעבירו אותה לעורכים דרכו או בעל-פה — לא בצ'אט ולא במייל.
-        ${first ? `<br>${n} הגאנטים שבדפדפן הזה יהפכו לגרסה המשותפת שכולם רואים.` : '<br>הגאנטים המשותפים נשארים כמו שהם. רק המפתח והסיסמה מתחלפים; הסיסמה הקודמת תפסיק לעבוד.'}</div></div>
-      <div><label class="field-label" for="stToken">מפתח עריכה של GitHub (token)</label>
+        <b>הסיסמה לא נשמרת בשום מקום.</b> נשמר רק מפתח העריכה, מוצפן בסיסמה. שמרו אותה במנהל סיסמאות, והעבירו אותה לעורכים דרכו או בעל-פה.
+        ${exists ? '<br>אחרי השמירה ב-GitHub הסיסמה הקודמת מפסיקה לעבוד, תוך דקה-שתיים.' : ''}</div></div>
+      <div><label class="field-label" for="ltToken">מפתח עריכה של GitHub (token)</label>
         <ol class="lock-steps">
-          <li>בחשבון <b>${REMOTE.owner}</b>, פתחו <a href="${TOKEN_URL}" target="_blank" rel="noopener">יצירת fine-grained token</a>.</li>
-          <li>Repository access ← <b>Only select repositories</b> ← <b dir="ltr">${REMOTE.repo}</b> בלבד.</li>
-          <li>Permissions ← Repository permissions ← <b>Contents: Read and write</b>. שום הרשאה אחרת.</li>
-          <li>Expiration: עד שנה. כשהוא פג, חוזרים לכאן ומגדירים חדש.</li>
+          <li>בחשבון <b>${REMOTE.owner}</b>: <a href="${TOKEN_URL}" target="_blank" rel="noopener">יצירת fine-grained token</a>.</li>
+          <li>Repository access ← <b>Only select repositories</b> ← <b dir="ltr">${REMOTE.repo}</b> בלבד. <b>לא</b> ${SITE.repo}.</li>
+          <li>Permissions ← <b>Contents: Read and write</b>. שום הרשאה אחרת.</li>
         </ol>
-        <input type="password" id="stToken" class="field-input" dir="ltr" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></div>
-      <div><label class="field-label" for="stPw">סיסמת עריכה</label>
-        <input type="password" id="stPw" class="field-input" dir="ltr" autocomplete="new-password">
-        <div class="field-hint">לפחות ${MIN_PASSWORD} תווים. עדיף 4–5 מילים אקראיות. המפתח המוצפן נמצא בריפו ציבורי, אז סיסמה קצרה אפשר לפצח.</div></div>
-      <div><label class="field-label" for="stPw2">הקלידו שוב</label>
-        <input type="password" id="stPw2" class="field-input" dir="ltr" autocomplete="new-password"></div>
-      <div class="field-error" id="stErr" aria-live="assertive"></div>
+        <input type="password" id="ltToken" class="field-input" dir="ltr" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></div>
+      <div><label class="field-label" for="ltPw">סיסמת עריכה חדשה</label>
+        <input type="password" id="ltPw" class="field-input" dir="ltr" autocomplete="new-password">
+        <div class="field-hint">לפחות ${MIN_PASSWORD} תווים, עם אותיות ומספרים. כל תו נוסף מקשה מאוד לנחש אותה.</div></div>
+      <div><label class="field-label" for="ltPw2">הקלידו שוב</label>
+        <input type="password" id="ltPw2" class="field-input" dir="ltr" autocomplete="new-password"></div>
+      <div class="field-error" id="ltErr" aria-live="assertive"></div>
+      <div id="ltOut" style="display:none;flex-direction:column;gap:8px">
+        <label class="field-label" for="ltJson">הקובץ ${SITE.lockFile} — מוצפן, בטוח להעתקה</label>
+        <textarea id="ltJson" class="share-link" rows="4" readonly dir="ltr"></textarea>
+        <ol class="lock-steps">
+          <li>לחצו <b>"פתח ב-GitHub"</b>. ${exists ? 'בעורך: סמנו הכל ומחקו, והדביקו את התוכן שהועתק.' : 'הקובץ כבר ממולא.'}</li>
+          <li>Commit changes ← ישירות ל-<b>${SITE.branch}</b>.</li>
+          <li>אחרי דקה בערך: רעננו את האתר, "ערוך את הגאנט", והקלידו את הסיסמה החדשה.</li>
+        </ol>
+        <div class="field-hint">אפשר גם להדביק את התוכן הזה ל-Claude והוא ישמור אותו. את הסיסמה עצמה לא שולחים לאף אחד.</div>
+      </div>
     </form>`,
-    footer: '<span></span><div class="footer-actions"><button type="button" class="cancel-btn" onclick="closeDialog()">ביטול</button><button type="button" class="save-btn" id="stGo">שמור והתחל לערוך</button></div>' });
-  document.getElementById('stGo').onclick = setupSubmit;
+    footer: '<span></span><div class="footer-actions"><button type="button" class="cancel-btn" onclick="closeDialog()">סגור</button><button type="button" class="save-btn" id="ltGo">צור קובץ נעילה</button></div>' });
+  document.getElementById('ltGo').onclick = lockToolSubmit;
 }
-async function setupSubmit() {
-  const token = document.getElementById('stToken').value.trim(), pw = document.getElementById('stPw').value, pw2 = document.getElementById('stPw2').value;
-  const err = document.getElementById('stErr'), btn = document.getElementById('stGo');
+async function lockToolSubmit() {
+  const btn = document.getElementById('ltGo');
+  if (btn.dataset.url) { window.open(btn.dataset.url, '_blank', 'noopener'); return; }
+  const token = document.getElementById('ltToken').value.trim(), pw = document.getElementById('ltPw').value, pw2 = document.getElementById('ltPw2').value;
+  const err = document.getElementById('ltErr');
   if (btn.disabled) return;
   err.textContent = '';
   if (!token) { err.textContent = 'הדביקו את ה-token מ-GitHub.'; return; }
-  if (pw.length < MIN_PASSWORD) { err.textContent = 'הסיסמה צריכה לפחות ' + MIN_PASSWORD + ' תווים.'; return; }
+  const bad = passwordProblem(pw); if (bad) { err.textContent = bad; return; }
   if (pw !== pw2) { err.textContent = 'שתי הסיסמאות לא זהות.'; return; }
-  btn.disabled = true; btn.textContent = 'מגדיר…';
-  const fail = msg => { btn.disabled = false; btn.textContent = 'שמור והתחל לערוך'; err.textContent = msg; };
-  let latest;
-  try { latest = await fetchShared(token); }
+  btn.disabled = true; btn.textContent = 'בודק…';
+  const fail = msg => { btn.disabled = false; btn.textContent = 'צור קובץ נעילה'; err.textContent = msg; };
+  try { await fetchShared(token); }
   catch (e) { fail(e.status === 401 ? 'GitHub לא מכיר את ה-token הזה (שגוי או שפג תוקפו).' : 'אין חיבור ל-GitHub (' + (e.status || 'network') + '). נסו שוב.'); return; }
-  if (latest.data && !pub.dirty) applyShared(latest.data, latest.sha); else if (latest.missing) remote.sha = null;
-  const prevLock = remote.lock;
-  remote.lock = await sealToken(token, pw);
-  const r = await putShared(token, latest.missing ? 'Set up shared gantt data' : 'Change edit password');
-  if (!r.ok) {
-    remote.lock = prevLock;
-    fail(r.status === 404 ? 'הריפו ' + REMOTE.owner + '/' + REMOTE.repo + ' לא נמצא, או שה-token לא נוצר עבורו.'
-       : r.status === 403 ? 'ל-token אין הרשאת כתיבה. צריך Contents: Read and write על ' + REMOTE.repo + '.'
-       : r.status === 409 || r.status === 422 ? 'הגרסה המשותפת השתנתה באמצע. נסו שוב.'
-       : 'השמירה ב-GitHub נכשלה (' + (r.status || 'network') + '). נסו שוב.');
-    return;
-  }
-  remote.state = 'shared'; remote.known = true; pub.dirty = false; pub.error = '';
-  startEditing(token, Date.now() + EDIT_TTL_MS);
-  closeDialog();
-  showToast(latest.missing ? 'נעילת העריכה הוגדרה. הגאנט משותף, והעריכה פתוחה לשעה.' : 'הסיסמה הוחלפה. העריכה פתוחה לשעה.', { duration: 9000 });
+  const json = JSON.stringify(await sealToken(token, pw), null, 1) + '\n';
+  ['ltToken', 'ltPw', 'ltPw2'].forEach(id => { const el = document.getElementById(id); el.value = ''; el.disabled = true; });
+  document.getElementById('ltJson').value = json;
+  document.getElementById('ltOut').style.display = 'flex';
+  try { await navigator.clipboard.writeText(json); } catch (_) {}
+  btn.disabled = false; btn.textContent = 'פתח ב-GitHub'; btn.dataset.url = lockFileUrl(json);
+  showToast('קובץ הנעילה מוכן והועתק. עכשיו שמרו אותו ב-GitHub.');
 }
 
 // ---- header UI ----
